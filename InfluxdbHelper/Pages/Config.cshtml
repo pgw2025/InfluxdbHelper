@@ -31,9 +31,13 @@
 
                         <div class="mb-3">
                             <label asp-for="Config.Token" class="form-label">认证 Token</label>
-                            <input asp-for="Config.Token" type="password" class="form-control" placeholder="请输入认证 Token" />
+                            <div class="input-group">
+                                <input type="text" value="@Model.Config.DisplayToken" class="form-control" id="tokenDisplay" readonly />
+                                <input asp-for="Config.Token" type="hidden" id="tokenHidden" />
+                                <button class="btn btn-outline-secondary" type="button" id="toggleToken">显示完整</button>
+                            </div>
                             <span asp-validation-for="Config.Token" class="text-danger"></span>
-                            <div class="form-text">InfluxDB 认证 Token</div>
+                            <div class="form-text">InfluxDB 认证 Token (点击"显示完整"按钮查看完整Token)</div>
                         </div>
 
                         <div class="mb-3">
@@ -72,7 +76,11 @@
 
                         <div class="mb-3">
                             <label asp-for="Config.DingTalkSecret" class="form-label">钉钉机器人密钥（可选）</label>
-                            <input asp-for="Config.DingTalkSecret" type="password" class="form-control" placeholder="请输入钉钉机器人加签密钥" />
+                            <div class="input-group">
+                                <input type="text" value="@Model.Config.DisplayDingTalkSecret" class="form-control" id="dingTalkSecretDisplay" readonly />
+                                <input asp-for="Config.DingTalkSecret" type="hidden" id="dingTalkSecretHidden" />
+                                <button class="btn btn-outline-secondary" type="button" id="toggleDingTalkSecret">显示完整</button>
+                            </div>
                             <span asp-validation-for="Config.DingTalkSecret" class="text-danger"></span>
                             <div class="form-text">如果钉钉机器人设置了加签安全验证，请输入密钥</div>
                         </div>
@@ -125,4 +133,51 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // InfluxDB Token 显示/隐藏功能
+            const tokenDisplay = document.getElementById('tokenDisplay');
+            const tokenHidden = document.getElementById('tokenHidden');
+            const toggleTokenBtn = document.getElementById('toggleToken');
+
+            if (tokenDisplay && tokenHidden && toggleTokenBtn) {
+                let isShowingFull = false;
+
+                toggleTokenBtn.addEventListener('click', function() {
+                    if (isShowingFull) {
+                        // 显示隐藏格式
+                        tokenDisplay.value = '@Model.Config.DisplayToken';
+                        toggleTokenBtn.textContent = '显示完整';
+                    } else {
+                        // 显示完整Token
+                        tokenDisplay.value = tokenHidden.value;
+                        toggleTokenBtn.textContent = '隐藏';
+                    }
+                    isShowingFull = !isShowingFull;
+                });
+            }
+
+            // 钉钉机器人密钥显示/隐藏功能
+            const dingTalkSecretDisplay = document.getElementById('dingTalkSecretDisplay');
+            const dingTalkSecretHidden = document.getElementById('dingTalkSecretHidden');
+            const toggleDingTalkSecretBtn = document.getElementById('toggleDingTalkSecret');
+
+            if (dingTalkSecretDisplay && dingTalkSecretHidden && toggleDingTalkSecretBtn) {
+                let isDingTalkSecretShowingFull = false;
+
+                toggleDingTalkSecretBtn.addEventListener('click', function() {
+                    if (isDingTalkSecretShowingFull) {
+                        // 显示隐藏格式
+                        dingTalkSecretDisplay.value = '@Model.Config.DisplayDingTalkSecret';
+                        toggleDingTalkSecretBtn.textContent = '显示完整';
+                    } else {
+                        // 显示完整密钥
+                        dingTalkSecretDisplay.value = dingTalkSecretHidden.value;
+                        toggleDingTalkSecretBtn.textContent = '隐藏';
+                    }
+                    isDingTalkSecretShowingFull = !isDingTalkSecretShowingFull;
+                });
+            }
+        });
+    </script>
 }
