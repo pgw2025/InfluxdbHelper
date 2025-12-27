@@ -1,0 +1,25 @@
+@page
+@model TestModel
+@{
+    ViewData["Title"] = "连接测试";
+}
+
+<div class="container-fluid">
+    <h1 class="mt-4 mb-4">InfluxDB 连接测试</h1>
+
+    @if (TempData["TestResult"] != null)
+    {
+        <div class="alert @(TempData["TestSuccess"]?.ToString() == "true" ? "alert-success" : "alert-danger")" role="alert">
+            @TempData["TestResult"]
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">测试InfluxDB连接</h5>
+            <form method="post">
+                <button type="submit" class="btn btn-primary">执行连接测试</button>
+            </form>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,58 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "首页";
+}
+
+<div class="text-center">
+    <h1 class="display-4">InfluxDB 助手</h1>
+    <p>用于查询和分析 InfluxDB 数据库中的数据</p>
+
+    <!-- 配置状态显示 -->
+    <div class="mt-3">
+        <span class="badge @(Model.InfluxDBStatus == "已配置" ? "bg-success" : "bg-warning")">
+            数据库状态: @Model.InfluxDBStatus
+        </span>
+        @if (!string.IsNullOrEmpty(Model.InfluxDBUrl))
+        {
+            <span class="ms-2 text-muted">(@Model.InfluxDBUrl)</span>
+        }
+    </div>
+
+    <div class="mt-4">
+        <a asp-page="/Statistics/Index" class="btn btn-primary btn-lg me-2">查看数据统计</a>
+        <a asp-page="/Config" class="btn btn-outline-primary btn-lg">配置数据库</a>
+    </div>
+</div>
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">数据统计</h5>
+                    <p class="card-text">查看数据库中的数据条数统计</p>
+                    <a asp-page="/Statistics/Index" class="btn btn-primary">进入统计</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">数据查询</h5>
+                    <p class="card-text">按时间段查询变量历史数据</p>
+                    <a asp-page="/Statistics/Index" class="btn btn-primary">开始查询</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">系统配置</h5>
+                    <p class="card-text">配置数据库连接和钉钉通知</p>
+                    <a asp-page="/Config" class="btn btn-primary">配置系统</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

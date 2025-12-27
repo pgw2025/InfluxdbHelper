@@ -1,0 +1,128 @@
+@page
+@model ConfigModel
+@{
+    ViewData["Title"] = "数据库配置";
+}
+
+<div class="container-fluid">
+    <h1 class="mt-4 mb-4">InfluxDB 数据库配置</h1>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success" role="alert">
+            @TempData["SuccessMessage"]
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-8">
+            <form method="post">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">InfluxDB 连接配置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label asp-for="Config.Url" class="form-label">InfluxDB URL</label>
+                            <input asp-for="Config.Url" class="form-control" placeholder="例如: http://localhost:8086" />
+                            <span asp-validation-for="Config.Url" class="text-danger"></span>
+                            <div class="form-text">InfluxDB 服务器的访问地址</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Config.Token" class="form-label">认证 Token</label>
+                            <input asp-for="Config.Token" type="password" class="form-control" placeholder="请输入认证 Token" />
+                            <span asp-validation-for="Config.Token" class="text-danger"></span>
+                            <div class="form-text">InfluxDB 认证 Token</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Config.Org" class="form-label">组织 (Org)</label>
+                            <input asp-for="Config.Org" class="form-control" placeholder="请输入组织名称" />
+                            <span asp-validation-for="Config.Org" class="text-danger"></span>
+                            <div class="form-text">InfluxDB 组织名称</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Config.Bucket" class="form-label">存储桶 (Bucket)</label>
+                            <input asp-for="Config.Bucket" class="form-control" placeholder="请输入存储桶名称" />
+                            <span asp-validation-for="Config.Bucket" class="text-danger"></span>
+                            <div class="form-text">InfluxDB 存储桶名称</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">钉钉机器人配置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3 form-check form-switch">
+                            <input asp-for="Config.DingTalkEnabled" type="checkbox" class="form-check-input" id="dingTalkEnabled">
+                            <label class="form-check-label" for="dingTalkEnabled">启用钉钉通知</label>
+                            <div class="form-text">开启后将定期向钉钉机器人发送统计数据</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Config.DingTalkWebhookUrl" class="form-label">钉钉机器人 Webhook URL</label>
+                            <input asp-for="Config.DingTalkWebhookUrl" class="form-control" placeholder="请输入钉钉机器人 Webhook URL" />
+                            <span asp-validation-for="Config.DingTalkWebhookUrl" class="text-danger"></span>
+                            <div class="form-text">用于接收数据统计通知的钉钉机器人 Webhook 地址</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Config.DingTalkSecret" class="form-label">钉钉机器人密钥（可选）</label>
+                            <input asp-for="Config.DingTalkSecret" type="password" class="form-control" placeholder="请输入钉钉机器人加签密钥" />
+                            <span asp-validation-for="Config.DingTalkSecret" class="text-danger"></span>
+                            <div class="form-text">如果钉钉机器人设置了加签安全验证，请输入密钥</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input asp-for="SaveToConfigFile" type="checkbox" class="form-check-input" id="saveToConfigFile">
+                    <label class="form-check-label" for="saveToConfigFile">保存到配置文件</label>
+                    <div class="form-text">勾选此项将把配置保存到 appsettings.json 文件，需要重启应用才能完全生效</div>
+                </div>
+
+                <div class="mb-4">
+                    <button type="submit" class="btn btn-primary">保存配置</button>
+                    <a asp-page="/Index" class="btn btn-secondary">返回首页</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">配置说明</h5>
+                </div>
+                <div class="card-body">
+                    <h6>如何配置 InfluxDB</h6>
+                    <ol>
+                        <li>确保 InfluxDB 服务正在运行</li>
+                        <li>获取认证 Token（在 InfluxDB UI 中创建）</li>
+                        <li>确认组织名称和存储桶名称</li>
+                        <li>填写以上信息并保存配置</li>
+                    </ol>
+
+                    <h6 class="mt-3">如何配置钉钉机器人</h6>
+                    <ol>
+                        <li>在钉钉群中添加自定义机器人</li>
+                        <li>获取 Webhook URL</li>
+                        <li>确保安全设置正确（如关键词、IP白名单等）</li>
+                        <li>将 URL 填入上方字段</li>
+                    </ol>
+
+                    <div class="alert alert-info mt-3">
+                        <strong>注意：</strong> 当前版本需要手动修改 appsettings.json 文件保存配置。未来版本将支持动态配置。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

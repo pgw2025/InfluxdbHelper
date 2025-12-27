@@ -1,0 +1,123 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+/* 响应式表格优化 - 移动端 */
+.table-responsive-mobile {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 移动端按钮优化 */
+.btn-mobile-full {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+/* 移动端卡片优化 */
+.card-mobile-padding {
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+/* 移动端标题优化 */
+.display-4-mobile {
+  font-size: 1.5rem !important;
+}
+
+/* 适配各种屏幕尺寸 */
+@@media (max-width: 576px) {
+  .container, .container-fluid, .container-sm, .container-md, .container-lg, .container-xl, .container-xxl {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .card-body {
+    padding: 0.75rem;
+  }
+
+  .table th, .table td {
+    padding: 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    margin: 0.1rem;
+  }
+
+  .h1, h1 {
+    font-size: 1.5rem;
+  }
+
+  .h2, h2 {
+    font-size: 1.25rem;
+  }
+
+  .h3, h3 {
+    font-size: 1.2rem;
+  }
+
+  .h4, h4 {
+    font-size: 1.1rem;
+  }
+
+  .h5, h5 {
+    font-size: 1rem;
+  }
+
+  .h6, h6 {
+    font-size: 0.9rem;
+  }
+}
+
+/* 为移动端优化的特殊组件样式 */
+.stats-card-mobile {
+  margin-bottom: 0.75rem;
+}
+
+.mobile-friendly-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-friendly-form .btn {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+}
+
+/* 优化移动端触摸体验 */
+.btn {
+  touch-action: manipulation;
+}
+
+/* 优化移动端导航 */
+.nav-tabs .nav-link {
+  padding: 0.5rem 0.75rem;
+}
+
+/* 针对移动端优化的数据显示 */
+.data-display-mobile {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
