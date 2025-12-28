@@ -36,7 +36,17 @@ namespace InfluxdbHelper.Pages
                 Bucket = _configuration.GetSection("InfluxDBConfig:Bucket").Value ?? string.Empty,
                 DingTalkWebhookUrl = _configuration.GetSection("DingTalkConfig:WebhookUrl").Value ?? string.Empty,
                 DingTalkSecret = _configuration.GetSection("DingTalkConfig:Secret").Value ?? string.Empty,
-                DingTalkEnabled = _configuration.GetValue<bool>("DingTalkConfig:Enabled", true)
+                DingTalkEnabled = _configuration.GetValue<bool>("DingTalkConfig:Enabled", true),
+                DingTalkSendHour = _configuration.GetValue<int>("DingTalkConfig:SendHour", 9),
+                DingTalkSendMinute = _configuration.GetValue<int>("DingTalkConfig:SendMinute", 0),
+                DingTalkMessageTemplate = _configuration.GetSection("DingTalkConfig:MessageTemplate").Value ?? @"## InfluxDB 数据统计报告 ({{date}})
+
+### 数据概览
+- **总数据条数**: {{total_count}}
+- **统计时间**: {{start_time}} 至 {{end_time}}
+
+### 变量数据分布
+{{variable_stats}}"
             };
         }
 
@@ -91,6 +101,9 @@ namespace InfluxdbHelper.Pages
             configJson["DingTalkConfig"]["WebhookUrl"] = Config.DingTalkWebhookUrl;
             configJson["DingTalkConfig"]["Secret"] = Config.DingTalkSecret;
             configJson["DingTalkConfig"]["Enabled"] = Config.DingTalkEnabled;
+            configJson["DingTalkConfig"]["SendHour"] = Config.DingTalkSendHour;
+            configJson["DingTalkConfig"]["SendMinute"] = Config.DingTalkSendMinute;
+            configJson["DingTalkConfig"]["MessageTemplate"] = Config.DingTalkMessageTemplate;
 
             await System.IO.File.WriteAllTextAsync(configPath, configJson.ToString());
         }

@@ -25,6 +25,11 @@
     <div class="mb-4">
         <div class="d-grid gap-2 d-md-block">
             <form method="post" asp-page-handler="ChangePeriod" class="d-inline-block mb-1">
+                <input type="hidden" name="period" value="day" />
+                <button type="submit" class="btn @(Model.Period == "day" ? "btn-primary" : "btn-outline-primary") btn-mobile-full">今日</button>
+            </form>
+
+            <form method="post" asp-page-handler="ChangePeriod" class="d-inline-block mb-1">
                 <input type="hidden" name="period" value="yesterday" />
                 <button type="submit" class="btn @(Model.Period == "yesterday" ? "btn-primary" : "btn-outline-primary") btn-mobile-full">昨日</button>
             </form>
@@ -32,11 +37,6 @@
             <form method="post" asp-page-handler="ChangePeriod" class="d-inline-block mb-1">
                 <input type="hidden" name="period" value="daybefore" />
                 <button type="submit" class="btn @(Model.Period == "daybefore" ? "btn-primary" : "btn-outline-primary") btn-mobile-full">前日</button>
-            </form>
-
-            <form method="post" asp-page-handler="ChangePeriod" class="d-inline-block mb-1">
-                <input type="hidden" name="period" value="day" />
-                <button type="submit" class="btn @(Model.Period == "day" ? "btn-primary" : "btn-outline-primary") btn-mobile-full">今日</button>
             </form>
 
             <form method="post" asp-page-handler="ChangePeriod" class="d-inline-block mb-1">

@@ -1,6 +1,7 @@
 using InfluxdbHelper.DTOs;
 using InfluxdbHelper.Services;
 using System.Linq;
+using NodaTime;
 
 namespace InfluxdbHelper.Services
 {
@@ -50,9 +51,52 @@ namespace InfluxdbHelper.Services
 
             foreach (var record in result)
             {
-                var dataName = record.Tags.ContainsKey("DataName") ? record.Tags["DataName"].ToString() : "unknown";
+                // Convert dynamic record to dictionary to access properties
+                var recordDict = (IDictionary<string, object>)record;
 
-                if (int.TryParse(record.Value?.ToString(), out int count))
+                // Try to get DataName from the record - it might be stored in different ways
+                string dataName = "unknown";
+
+                // Check if there's a DataName key in the record
+                if (recordDict.ContainsKey("DataName"))
+                {
+                    dataName = recordDict["DataName"]?.ToString() ?? "unknown";
+                }
+                // Otherwise, check if there's a tag field that contains DataName
+                else if (recordDict.ContainsKey("tag") && recordDict["tag"] is IDictionary<string, object> tagDict && tagDict.ContainsKey("DataName"))
+                {
+                    dataName = tagDict["DataName"]?.ToString() ?? "unknown";
+                }
+                // As a fallback, check for other common keys that might contain the variable name
+                else if (recordDict.ContainsKey("name"))
+                {
+                    dataName = recordDict["name"]?.ToString() ?? "unknown";
+                }
+                else if (recordDict.ContainsKey("_measurement"))
+                {
+                    dataName = recordDict["_measurement"]?.ToString() ?? "unknown";
+                }
+                else if (recordDict.ContainsKey("result"))
+                {
+                    dataName = recordDict["result"]?.ToString() ?? "unknown";
+                }
+
+                // Get the count value
+                object countValue = null;
+                if (recordDict.ContainsKey("_value"))
+                {
+                    countValue = recordDict["_value"];
+                }
+                else if (recordDict.ContainsKey("Value"))
+                {
+                    countValue = recordDict["Value"];
+                }
+                else if (recordDict.ContainsKey("value"))
+                {
+                    countValue = recordDict["value"];
+                }
+
+                if (countValue != null && int.TryParse(countValue.ToString(), out int count))
                 {
                     variableStats.Add(new VariableStatisticsDto
                     {
@@ -71,20 +115,211 @@ namespace InfluxdbHelper.Services
 
         public async Task<List<VariableValueDto>> GetVariableHistoryAsync(string variableName, DateTime startTime, DateTime endTime)
         {
-            var query = $"from(bucket: \"{_bucket}\") |> range(start: {startTime:yyyy-MM-ddTHH:mm:ssZ}, stop: {endTime:yyyy-MM-ddTHH:mm:ssZ}) |> filter(fn: (r) => r[\"_field\"] == \"{variableName}\") |> yield(name: \"values\")";
-            
-            var result = await _influxDbService.QueryDataAsync(query);
-            
             var variableValues = new List<VariableValueDto>();
-            
+
+            // First, try querying by DataName tag (as mentioned by user this is the correct field)
+            var query = $"from(bucket: \"{_bucket}\") |> range(start: {startTime:yyyy-MM-ddTHH:mm:ssZ}, stop: {endTime:yyyy-MM-ddTHH:mm:ssZ}) |> filter(fn: (r) => r[\"DataName\"] == \"{variableName}\") |> yield(name: \"values\")";
+
+            var result = await _influxDbService.QueryDataAsync(query);
+
             foreach (var record in result)
             {
+                // Convert dynamic record to dictionary to access properties
+                var recordDict = (IDictionary<string, object>)record;
+
+                // Extract values from the record dictionary
+                object timeValue = null;
+                if (recordDict.ContainsKey("Time"))
+                {
+                    timeValue = recordDict["Time"];
+                }
+                else if (recordDict.ContainsKey("_time"))
+                {
+                    timeValue = recordDict["_time"];
+                }
+
+                object value = null;
+                if (recordDict.ContainsKey("Value"))
+                {
+                    value = recordDict["Value"];
+                }
+                else if (recordDict.ContainsKey("_value"))
+                {
+                    value = recordDict["_value"];
+                }
+                else if (recordDict.ContainsKey("value"))
+                {
+                    value = recordDict["value"];
+                }
+
+                object dataName = null;
+                if (recordDict.ContainsKey("DataName"))
+                {
+                    dataName = recordDict["DataName"];
+                }
+                else if (recordDict.ContainsKey("Field"))
+                {
+                    dataName = recordDict["Field"];
+                }
+                else if (recordDict.ContainsKey("_field"))
+                {
+                    dataName = recordDict["_field"];
+                }
+
+                // Convert time to DateTime, handling potential nulls and NodaTime.Instant
+                DateTime time = DateTime.MinValue;
+                if (timeValue != null)
+                {
+                    if (timeValue is DateTime dt)
+                    {
+                        time = dt.ToLocalTime();
+                    }
+                    else if (timeValue is NodaTime.Instant instant)
+                    {
+                        time = instant.ToDateTimeOffset().LocalDateTime;
+                    }
+                    else if (DateTime.TryParse(timeValue.ToString(), out DateTime parsedTime))
+                    {
+                        time = parsedTime.ToLocalTime();
+                    }
+                }
+
                 variableValues.Add(new VariableValueDto
                 {
-                    VariableName = record.Field,
-                    Value = record.Value,
-                    Time = record.Time?.ToLocalTime() ?? DateTime.MinValue
+                    VariableName = (dataName?.ToString()) ?? variableName,
+                    Value = value,
+                    Time = time
                 });
+            }
+
+            // If no results found with DataName, try alternative approaches
+            if (variableValues.Count == 0)
+            {
+                // Try filtering by _field as a fallback
+                var fieldQuery = $"from(bucket: \"{_bucket}\") |> range(start: {startTime:yyyy-MM-ddTHH:mm:ssZ}, stop: {endTime:yyyy-MM-ddTHH:mm:ssZ}) |> filter(fn: (r) => r[\"_field\"] == \"{variableName}\") |> yield(name: \"values\")";
+
+                var fieldResult = await _influxDbService.QueryDataAsync(fieldQuery);
+
+                foreach (var record in fieldResult)
+                {
+                    // Convert dynamic record to dictionary to access properties
+                    var recordDict = (IDictionary<string, object>)record;
+
+                    // Extract values from the record dictionary
+                    object timeValue = null;
+                    if (recordDict.ContainsKey("Time"))
+                    {
+                        timeValue = recordDict["Time"];
+                    }
+                    else if (recordDict.ContainsKey("_time"))
+                    {
+                        timeValue = recordDict["_time"];
+                    }
+
+                    object value = null;
+                    if (recordDict.ContainsKey("Value"))
+                    {
+                        value = recordDict["Value"];
+                    }
+                    else if (recordDict.ContainsKey("_value"))
+                    {
+                        value = recordDict["_value"];
+                    }
+                    else if (recordDict.ContainsKey("value"))
+                    {
+                        value = recordDict["value"];
+                    }
+
+                    // Convert time to DateTime, handling potential nulls and NodaTime.Instant
+                    DateTime time = DateTime.MinValue;
+                    if (timeValue != null)
+                    {
+                        if (timeValue is DateTime dt)
+                        {
+                            time = dt.ToLocalTime();
+                        }
+                        else if (timeValue is NodaTime.Instant instant)
+                        {
+                            time = instant.ToDateTimeOffset().LocalDateTime;
+                        }
+                        else if (DateTime.TryParse(timeValue.ToString(), out DateTime parsedTime))
+                        {
+                            time = parsedTime.ToLocalTime();
+                        }
+                    }
+
+                    variableValues.Add(new VariableValueDto
+                    {
+                        VariableName = variableName,
+                        Value = value,
+                        Time = time
+                    });
+                }
+            }
+
+            // If still no results, try other common tag names that might contain the variable name
+            if (variableValues.Count == 0)
+            {
+                // Try variable or name tags
+                var altQuery = $"from(bucket: \"{_bucket}\") |> range(start: {startTime:yyyy-MM-ddTHH:mm:ssZ}, stop: {endTime:yyyy-MM-ddTHH:mm:ssZ}) |> filter(fn: (r) => r[\"variable\"] == \"{variableName}\" or r[\"name\"] == \"{variableName}\") |> yield(name: \"values\")";
+
+                var altResult = await _influxDbService.QueryDataAsync(altQuery);
+
+                foreach (var record in altResult)
+                {
+                    // Convert dynamic record to dictionary to access properties
+                    var recordDict = (IDictionary<string, object>)record;
+
+                    // Extract values from the record dictionary
+                    object timeValue = null;
+                    if (recordDict.ContainsKey("Time"))
+                    {
+                        timeValue = recordDict["Time"];
+                    }
+                    else if (recordDict.ContainsKey("_time"))
+                    {
+                        timeValue = recordDict["_time"];
+                    }
+
+                    object value = null;
+                    if (recordDict.ContainsKey("Value"))
+                    {
+                        value = recordDict["Value"];
+                    }
+                    else if (recordDict.ContainsKey("_value"))
+                    {
+                        value = recordDict["_value"];
+                    }
+                    else if (recordDict.ContainsKey("value"))
+                    {
+                        value = recordDict["value"];
+                    }
+
+                    // Convert time to DateTime, handling potential nulls and NodaTime.Instant
+                    DateTime time = DateTime.MinValue;
+                    if (timeValue != null)
+                    {
+                        if (timeValue is DateTime dt)
+                        {
+                            time = dt.ToLocalTime();
+                        }
+                        else if (timeValue is NodaTime.Instant instant)
+                        {
+                            time = instant.ToDateTimeOffset().LocalDateTime;
+                        }
+                        else if (DateTime.TryParse(timeValue.ToString(), out DateTime parsedTime))
+                        {
+                            time = parsedTime.ToLocalTime();
+                        }
+                    }
+
+                    variableValues.Add(new VariableValueDto
+                    {
+                        VariableName = variableName,
+                        Value = value,
+                        Time = time
+                    });
+                }
             }
 
             return variableValues;

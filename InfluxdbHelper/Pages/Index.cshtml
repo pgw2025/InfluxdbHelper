@@ -20,6 +20,7 @@
     </div>
 
     <div class="mt-4">
+        <a asp-page="/VariableHistory" class="btn btn-primary btn-lg me-2">变量历史查询</a>
         <a asp-page="/Statistics/Index" class="btn btn-primary btn-lg me-2">查看数据统计</a>
         <a asp-page="/Config" class="btn btn-outline-primary btn-lg">配置数据库</a>
     </div>
@@ -30,18 +31,18 @@
         <div class="col-md-4">
             <div class="card text-center">
                 <div class="card-body">
-                    <h5 class="card-title">数据统计</h5>
-                    <p class="card-text">查看数据库中的数据条数统计</p>
-                    <a asp-page="/Statistics/Index" class="btn btn-primary">进入统计</a>
+                    <h5 class="card-title">变量历史查询</h5>
+                    <p class="card-text">按变量名查询历史数据</p>
+                    <a asp-page="/VariableHistory" class="btn btn-primary">开始查询</a>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card text-center">
                 <div class="card-body">
-                    <h5 class="card-title">数据查询</h5>
-                    <p class="card-text">按时间段查询变量历史数据</p>
-                    <a asp-page="/Statistics/Index" class="btn btn-primary">开始查询</a>
+                    <h5 class="card-title">数据统计</h5>
+                    <p class="card-text">查看数据库中的数据条数统计</p>
+                    <a asp-page="/Statistics/Index" class="btn btn-primary">进入统计</a>
                 </div>
             </div>
         </div>

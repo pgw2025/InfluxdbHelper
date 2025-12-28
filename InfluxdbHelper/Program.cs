@@ -10,6 +10,7 @@ namespace InfluxdbHelper
 
             // Add services to the container.
             builder.Services.AddRazorPages();
+            builder.Services.AddControllers(); // 添加API控制器支持
             builder.Services.AddScoped<IInfluxDBService, InfluxDBService>();
             builder.Services.AddScoped<IStatisticsService, StatisticsService>();
             builder.Services.AddScoped<IDingTalkService, DingTalkService>();
@@ -30,6 +31,7 @@ namespace InfluxdbHelper
             app.UseAuthorization();
 
             app.MapRazorPages();
+            app.MapControllers(); // 映射API控制器
 
             app.Run();
         }

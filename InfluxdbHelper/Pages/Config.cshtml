@@ -84,6 +84,31 @@
                             <span asp-validation-for="Config.DingTalkSecret" class="text-danger"></span>
                             <div class="form-text">如果钉钉机器人设置了加签安全验证，请输入密钥</div>
                         </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Config.DingTalkSendHour" class="form-label">钉钉消息发送时间</label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <input asp-for="Config.DingTalkSendHour" type="number" class="form-control" min="0" max="23" placeholder="小时" />
+                                    <span asp-validation-for="Config.DingTalkSendHour" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <input asp-for="Config.DingTalkSendMinute" type="number" class="form-control" min="0" max="59" placeholder="分钟" />
+                                    <span asp-validation-for="Config.DingTalkSendMinute" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="form-text">设置钉钉消息发送的时间（24小时制）</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Config.DingTalkMessageTemplate" class="form-label">钉钉消息模板</label>
+                            <textarea asp-for="Config.DingTalkMessageTemplate" class="form-control" rows="8" placeholder="请输入钉钉消息模板，可使用以下变量：{{date}}, {{total_count}}, {{start_time}}, {{end_time}}, {{variable_stats}}"></textarea>
+                            <span asp-validation-for="Config.DingTalkMessageTemplate" class="text-danger"></span>
+                            <div class="form-text">
+                                消息模板，支持以下变量：<code>{{date}}</code>, <code>{{total_count}}</code>, <code>{{start_time}}</code>,
+                                <code>{{end_time}}</code>, <code>{{variable_stats}}</code>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

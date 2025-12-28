@@ -54,6 +54,22 @@ namespace InfluxdbHelper.Models
 
         public bool DingTalkEnabled { get; set; } = true;
 
+        // 钉钉消息发送时间配置（小时）
+        public int DingTalkSendHour { get; set; } = 9;
+
+        // 钉钉消息发送分钟配置
+        public int DingTalkSendMinute { get; set; } = 0;
+
+        // 钉钉消息模板
+        public string DingTalkMessageTemplate { get; set; } = @"## InfluxDB 数据统计报告 ({{date}})
+
+### 数据概览
+- **总数据条数**: {{total_count}}
+- **统计时间**: {{start_time}} 至 {{end_time}}
+
+### 变量数据分布
+{{variable_stats}}";
+
         public bool SaveToConfigFile { get; set; } = false;
     }
 }

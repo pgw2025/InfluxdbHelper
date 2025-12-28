@@ -19,9 +19,13 @@ namespace InfluxdbHelper.BackgroundServices
         {
             _logger.LogInformation("每日统计数据通知服务已启动");
 
-            // 每天上午9点执行
+            // 从配置获取发送时间，默认为上午9点
+            var sendHour = _configuration.GetValue<int>("DingTalkConfig:SendHour", 9);
+            var sendMinute = _configuration.GetValue<int>("DingTalkConfig:SendMinute", 0);
+
+            // 每天指定时间执行
             var now = DateTime.Now;
-            var nextRun = new DateTime(now.Year, now.Month, now.Day, 9, 0, 0); // 每天上午9点
+            var nextRun = new DateTime(now.Year, now.Month, now.Day, sendHour, sendMinute, 0); // 每天指定时间
             if (now >= nextRun)
             {
                 nextRun = nextRun.AddDays(1);
@@ -47,7 +51,7 @@ namespace InfluxdbHelper.BackgroundServices
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "发送每日统计数据时发生错误");
-                    
+
                     // 发生错误后等待一段时间再重试，避免无限循环
                     await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
                 }
@@ -83,37 +87,34 @@ namespace InfluxdbHelper.BackgroundServices
 
                 // 获取总数据条数
                 var totalStats = await statisticsService.GetTotalDataCountAsync(todayStart, todayEnd);
-                
+
                 // 获取各变量的数据条数
                 var variableStats = await statisticsService.GetVariableCountsAsync(todayStart, todayEnd);
 
-                // 构建消息内容
-                var markdownContent = $"## InfluxDB 数据统计报告 ({todayStart:yyyy-MM-dd})\n\n" +
-                                    $"### 数据概览\n" +
-                                    $"- **总数据条数**: {totalStats?.TotalCount ?? 0}\n" +
-                                    $"- **统计时间**: {todayStart:yyyy-MM-dd} 00:00:00 至 {todayEnd:yyyy-MM-dd HH:mm:ss}\n\n" +
-                                    $"### 变量数据分布\n";
+                // 获取消息模板
+                var template = _configuration.GetSection("DingTalkConfig:MessageTemplate").Value ?? @"## InfluxDB 数据统计报告 ({{date}})
 
-                if (variableStats != null && variableStats.Any())
-                {
-                    markdownContent += "| 变量名称 | 数据条数 |\n";
-                    markdownContent += "|--------|--------|\n";
-                    foreach (var stat in variableStats)
-                    {
-                        markdownContent += $"| {stat.VariableName} | {stat.Count} |\n";
-                    }
-                }
-                else
-                {
-                    markdownContent += "暂无变量数据\n";
-                }
+### 数据概览
+- **总数据条数**: {{total_count}}
+- **统计时间**: {{start_time}} 至 {{end_time}}
+
+### 变量数据分布
+{{variable_stats}}";
+
+                // 替换模板中的变量
+                var markdownContent = template
+                    .Replace("{{date}}", todayStart.ToString("yyyy-MM-dd"))
+                    .Replace("{{total_count}}", (totalStats?.TotalCount ?? 0).ToString())
+                    .Replace("{{start_time}}", $"{todayStart:yyyy-MM-dd} 00:00:00")
+                    .Replace("{{end_time}}", $"{todayEnd:yyyy-MM-dd HH:mm:ss}")
+                    .Replace("{{variable_stats}}", BuildVariableStatsMarkdown(variableStats));
 
                 // 获取钉钉机器人密钥
                 var secret = _configuration.GetSection("DingTalkConfig:Secret").Value ?? string.Empty;
 
                 // 发送消息到钉钉
                 var success = await dingTalkService.SendMarkdownMessageAsync(webhookUrl, secret, "InfluxDB 数据统计报告", markdownContent);
-                
+
                 if (success)
                 {
                     _logger.LogInformation("成功发送每日统计数据到钉钉");
@@ -126,6 +127,27 @@ namespace InfluxdbHelper.BackgroundServices
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取或发送统计数据时发生错误");
+            }
+        }
+
+        private string BuildVariableStatsMarkdown(IEnumerable<dynamic> variableStats)
+        {
+            if (variableStats != null && variableStats.Any())
+            {
+                var markdown = "| 变量名称 | 数据条数 |\n";
+                markdown += "|--------|--------|\n";
+                foreach (var stat in variableStats)
+                {
+                    // 根据实际对象类型进行访问
+                    string variableName = stat.VariableName?.ToString() ?? stat.variableName?.ToString() ?? stat.name?.ToString() ?? "未知";
+                    int count = Convert.ToInt32(stat.Count ?? stat.count ?? 0);
+                    markdown += $"| {variableName} | {count} |\n";
+                }
+                return markdown;
+            }
+            else
+            {
+                return "暂无变量数据\n";
             }
         }
     }
