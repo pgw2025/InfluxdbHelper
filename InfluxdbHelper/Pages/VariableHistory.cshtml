@@ -112,6 +112,37 @@
         border-color: #0d6efd !important;
         color: white !important;
     }
+
+    #variableSuggestions {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        background-color: white;
+        z-index: 1000;
+    }
+
+    .suggestion-item {
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+    }
+
+    .suggestion-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .suggestion-item:last-child {
+        border-bottom: none;
+        border-bottom-left-radius: 0.375rem;
+        border-bottom-right-radius: 0.375rem;
+    }
+
+    .suggestion-item:first-child {
+        border-top-left-radius: 0.375rem;
+        border-top-right-radius: 0.375rem;
+    }
 </style>
 
 @section Scripts {
@@ -127,10 +158,10 @@
             const startTimeInput = document.getElementById('StartTime');
             const endTimeInput = document.getElementById('EndTime');
 
-            // 获取变量名建议
+            // 获取变量名建议 - 改进版，输入一个字符就开始显示建议
             variableInput.addEventListener('input', function() {
                 const query = this.value;
-                if (query.length >= 2) {
+                if (query.length >= 1) {  // 从2个字符减少到1个字符开始显示建议
                     // 添加防抖功能
                     clearTimeout(this.debounceTimer);
                     this.debounceTimer = setTimeout(() => {
@@ -149,7 +180,7 @@
             });
 
             variableInput.addEventListener('focus', function() {
-                if (this.value.length >= 2) {
+                if (this.value.length >= 1) {  // 从2个字符减少到1个字符
                     fetch(`/api/variables/autocomplete?query=${encodeURIComponent(this.value)}`)
                         .then(response => response.json())
                         .then(data => {

@@ -124,7 +124,7 @@ namespace InfluxdbHelper.Services
                 var query = $"from(bucket: \"{_bucket}\") " +
                            $"|> range(start: -1y) " +  // Changed from -30d to -1y to cover more data
                            $"|> group() " +
-                           $"|> distinct(column: \"_field\")";
+                           $"|> distinct(column: \"DataName\")";
 
                 var fluxTables = await _client.GetQueryApi().QueryAsync(query, _org);
                 var fieldNames = new List<string>();
@@ -157,7 +157,7 @@ namespace InfluxdbHelper.Services
                                        $"|> range(start: -30d) " +
                                        $"|> limit(n: 100) " +  // Limit to avoid performance issues
                                        $"|> group() " +
-                                       $"|> distinct(column: \"_field\")";
+                                       $"|> distinct(column: \"DataName\")";
 
                     var fluxTables = await _client.GetQueryApi().QueryAsync(fallbackQuery, _org);
                     var fieldNames = new List<string>();

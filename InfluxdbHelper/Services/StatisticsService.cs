@@ -161,10 +161,7 @@ namespace InfluxdbHelper.Services
                 {
                     dataName = recordDict["Field"];
                 }
-                else if (recordDict.ContainsKey("_field"))
-                {
-                    dataName = recordDict["_field"];
-                }
+                
 
                 // Convert time to DateTime, handling potential nulls and NodaTime.Instant
                 DateTime time = DateTime.MinValue;
