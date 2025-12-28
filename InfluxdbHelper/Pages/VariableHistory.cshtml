@@ -39,6 +39,19 @@
                     </div>
                 </div>
 
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="btn-group" role="group" aria-label="Quick time selection">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('last1h')">最近1小时</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('last3h')">最近3小时</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('today')">今天</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('yesterday')">昨天</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('dayBeforeYesterday')">前天</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('thisWeek')">本周</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('thisMonth')">本月</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col-md-12">
                         <button type="submit" class="btn btn-primary" id="queryBtn">
@@ -102,6 +115,8 @@
             const queryBtn = document.getElementById('queryBtn');
             const queryBtnText = document.getElementById('queryBtnText');
             const querySpinner = document.getElementById('querySpinner');
+            const startTimeInput = document.getElementById('StartTime');
+            const endTimeInput = document.getElementById('EndTime');
 
             // 获取变量名建议
             variableInput.addEventListener('input', function() {
@@ -169,8 +184,8 @@
 
             clearBtn.addEventListener('click', function() {
                 variableInput.value = '';
-                document.getElementById('StartTime').value = '';
-                document.getElementById('EndTime').value = '';
+                startTimeInput.value = '';
+                endTimeInput.value = '';
                 hideSuggestions();
             });
 
@@ -180,6 +195,63 @@
                 queryBtnText.textContent = '查询中...';
                 querySpinner.classList.remove('d-none');
             });
+
+            // 设置时间范围的函数
+            window.setTimeRange = function(range) {
+                const now = new Date();
+                const startInput = document.getElementById('StartTime');
+                const endInput = document.getElementById('EndTime');
+
+                let start, end = now;
+
+                switch(range) {
+                    case 'last1h':
+                        start = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+                        break;
+                    case 'last3h':
+                        start = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 hours ago
+                        break;
+                    case 'today':
+                        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+                        break;
+                    case 'yesterday':
+                        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                        end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        break;
+                    case 'dayBeforeYesterday':
+                        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2);
+                        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                        break;
+                    case 'thisWeek':
+                        const dayOfWeek = now.getDay();
+                        const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust when day is Sunday
+                        start = new Date(now.getFullYear(), now.getMonth(), diff);
+                        end = new Date(now.getFullYear(), now.getMonth(), diff + 7);
+                        break;
+                    case 'thisMonth':
+                        start = new Date(now.getFullYear(), now.getMonth(), 1);
+                        end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                        break;
+                    default:
+                        return;
+                }
+
+                // Format dates to datetime-local format (YYYY-MM-DDTHH:mm)
+                startInput.value = formatDateForInput(start);
+                endInput.value = formatDateForInput(end);
+            };
+
+            // Helper function to format date for datetime-local input
+            function formatDateForInput(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+
+                return `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
         });
     </script>
 }
