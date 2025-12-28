@@ -42,13 +42,14 @@
                 <div class="row mb-3">
                     <div class="col-md-12">
                         <div class="btn-group" role="group" aria-label="Quick time selection">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('last1h')">最近1小时</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('last3h')">最近3小时</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('today')">今天</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('yesterday')">昨天</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('dayBeforeYesterday')">前天</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('thisWeek')">本周</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTimeRange('thisMonth')">本月</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm time-btn" data-range="last1h">最近1小时</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm time-btn" data-range="last3h">最近3小时</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm time-btn" data-range="today">今天</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm time-btn" data-range="yesterday">昨天</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm time-btn" data-range="dayBeforeYesterday">前天</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm time-btn" data-range="thisWeek">本周</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm time-btn" data-range="thisMonth">本月</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm time-btn active" data-range="custom">自定义</button>
                         </div>
                     </div>
                 </div>
@@ -104,6 +105,14 @@
         </div>
     }
 </div>
+
+<style>
+    .time-btn.active {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: white !important;
+    }
+</style>
 
 @section Scripts {
     <script>
@@ -233,6 +242,10 @@
                         start = new Date(now.getFullYear(), now.getMonth(), 1);
                         end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
                         break;
+                    case 'custom':
+                        // For custom, don't change the values, just update button selection
+                        updateActiveButton('custom');
+                        return;
                     default:
                         return;
                 }
@@ -240,7 +253,30 @@
                 // Format dates to datetime-local format (YYYY-MM-DDTHH:mm)
                 startInput.value = formatDateForInput(start);
                 endInput.value = formatDateForInput(end);
+
+                // Update active button
+                updateActiveButton(range);
             };
+
+            // Update which button is active
+            function updateActiveButton(activeRange) {
+                const buttons = document.querySelectorAll('.time-btn');
+                buttons.forEach(button => {
+                    if (button.getAttribute('data-range') === activeRange) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                });
+            }
+
+            // Add event listeners to time buttons
+            document.querySelectorAll('.time-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const range = this.getAttribute('data-range');
+                    setTimeRange(range);
+                });
+            });
 
             // Helper function to format date for datetime-local input
             function formatDateForInput(date) {
