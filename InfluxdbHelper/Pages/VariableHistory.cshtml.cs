@@ -29,39 +29,62 @@ namespace InfluxdbHelper.Pages
 
         public List<VariableValueDto> QueryResults { get; set; } = new();
 
-        public async Task<IActionResult> OnGetAsync()
+        public async Task<IActionResult> OnGetAsync(string variableName = null, DateTime? startTime = null, DateTime? endTime = null)
         {
-            // 设置默认时间范围为最近24小时
-            if (!EndTime.HasValue)
+            // 如果参数被传递，则更新模型属性
+            if (!string.IsNullOrEmpty(variableName))
             {
-                EndTime = DateTime.Now;
+                VariableName = variableName;
             }
-            if (!StartTime.HasValue)
+            if (startTime.HasValue)
             {
-                StartTime = EndTime.Value.AddHours(-24);
+                StartTime = startTime;
+            }
+            if (endTime.HasValue)
+            {
+                EndTime = endTime;
             }
 
-            return Page();
-        }
-
-        public async Task<IActionResult> OnPostAsync()
-        {
+            // 如果变量名为空，只设置默认时间范围，不执行查询
             if (string.IsNullOrWhiteSpace(VariableName))
             {
-                TempData["ErrorMessage"] = "请提供变量名称";
+                // 设置默认时间范围为最近24小时
+                if (!EndTime.HasValue)
+                {
+                    EndTime = DateTime.Now;
+                }
+                if (!StartTime.HasValue)
+                {
+                    StartTime = EndTime.Value.AddHours(-24);
+                }
                 return Page();
             }
 
-            if (!StartTime.HasValue || !EndTime.HasValue)
+            // 如果时间范围未设置，则使用默认值（最近24小时）
+            // 检查是否至少有一个时间值未设置
+            bool startTimeMissing = !StartTime.HasValue;
+            bool endTimeMissing = !EndTime.HasValue;
+
+            if (startTimeMissing || endTimeMissing)
             {
-                TempData["ErrorMessage"] = "请提供完整的时间范围";
-                return Page();
+                // 如果其中一个时间值缺失，设置默认值
+                if (endTimeMissing)
+                {
+                    EndTime = DateTime.Now;
+                }
+                if (startTimeMissing)
+                {
+                    // 如果开始时间缺失，设置为结束时间的24小时前
+                    StartTime = EndTime.Value.AddHours(-24);
+                }
             }
 
             if (StartTime.Value > EndTime.Value)
             {
                 TempData["ErrorMessage"] = "开始时间不能晚于结束时间";
-                return Page();
+                // 设置回默认值以避免错误显示
+                EndTime = DateTime.Now;
+                StartTime = EndTime.Value.AddHours(-24);
             }
 
             try
@@ -117,12 +140,11 @@ namespace InfluxdbHelper.Pages
                     });
                 }
 
-               
+
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = $"查询失败: {ex.Message}";
-                return Page();
             }
 
             return Page();

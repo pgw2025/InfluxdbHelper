@@ -16,7 +16,7 @@
 
     <div class="card mb-4">
         <div class="card-body">
-            <form method="post" id="queryForm">
+            <form method="get" id="queryForm">
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group mb-3">
@@ -230,10 +230,47 @@
             });
 
             // 表单提交前显示加载状态
-            queryForm.addEventListener('submit', function() {
+            queryForm.addEventListener('submit', function(e) {
+                // 获取当前时间字段的值
+                const startInput = document.getElementById('StartTime');
+                const endInput = document.getElementById('EndTime');
+
+                // 如果时间字段为空，设置默认值（最近24小时）
+                if (!startInput.value || !endInput.value) {
+                    const now = new Date();
+                    const endTime = now;
+                    const startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24小时前
+
+                    if (!startInput.value) {
+                        startInput.value = formatDateForInput(startTime);
+                    }
+                    if (!endInput.value) {
+                        endInput.value = formatDateForInput(endTime);
+                    }
+                }
+
+                // 阻止默认提交行为，手动构建URL进行跳转
+                e.preventDefault();
+
+                const variableName = document.getElementById('variableNameInput').value;
+                const startTimeValue = startInput.value;
+                const endTimeValue = endInput.value;
+
+                // 构建查询参数
+                let params = [];
+                if (variableName) params.push(`VariableName=${encodeURIComponent(variableName)}`);
+                if (startTimeValue) params.push(`StartTime=${encodeURIComponent(startTimeValue)}`);
+                if (endTimeValue) params.push(`EndTime=${encodeURIComponent(endTimeValue)}`);
+
+                const queryString = params.join('&');
+                const url = queryString ? `?${queryString}` : window.location.pathname + window.location.search;
+
                 queryBtn.disabled = true;
                 queryBtnText.textContent = '查询中...';
                 querySpinner.classList.remove('d-none');
+
+                // 跳转到带参数的URL
+                window.location.href = url;
             });
 
             // 设置时间范围的函数
@@ -295,8 +332,12 @@
                 buttons.forEach(button => {
                     if (button.getAttribute('data-range') === activeRange) {
                         button.classList.add('active');
+                        button.classList.remove('btn-outline-secondary');
+                        button.classList.add('btn-secondary');
                     } else {
                         button.classList.remove('active');
+                        button.classList.remove('btn-secondary');
+                        button.classList.add('btn-outline-secondary');
                     }
                 });
             }
@@ -306,6 +347,12 @@
                 button.addEventListener('click', function() {
                     const range = this.getAttribute('data-range');
                     setTimeRange(range);
+
+                    // Remove active class from all buttons except the clicked one
+                    document.querySelectorAll('.time-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    this.classList.add('active');
                 });
             });
 
