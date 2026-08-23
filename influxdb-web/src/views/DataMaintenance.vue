@@ -127,9 +127,11 @@
     <el-dialog
       v-model="previewVisible"
       title="删除前核对"
-      width="720px"
+      :width="isMobile ? '92%' : '720px'"
+      :fullscreen="isMobile"
       :close-on-click-modal="false"
       append-to-body
+      class="preview-dialog"
     >
       <div v-loading="previewLoading">
         <el-alert type="warning" :closable="false" class="hint">
@@ -146,24 +148,73 @@
         </el-descriptions>
 
         <div class="sample-toolbar">
-          <span class="sample-title">抽样数据（共 {{ preview?.pointCount }} 条，显示前 {{ sortableSamples.length }} 条）</span>
-          <el-radio-group v-model="sampleLimit" size="small" @change="onSampleLimitChange">
-            <el-radio-button :value="20">20</el-radio-button>
-            <el-radio-button :value="50">50</el-radio-button>
-            <el-radio-button :value="100">100</el-radio-button>
-          </el-radio-group>
+          <span class="sample-title">抽样数据（共 {{ preview?.pointCount }} 条）</span>
+          <div class="sort-controls">
+            <span class="sort-label">排序</span>
+            <el-radio-group :model-value="previewSortBy" size="small" @change="(v: 'time' | 'value') => changeSort(v)">
+              <el-radio-button value="time">按时间</el-radio-button>
+              <el-radio-button value="value">按值</el-radio-button>
+            </el-radio-group>
+            <el-button
+              size="small"
+              text
+              @click="changeSort(previewSortBy)"
+            >
+              {{ previewSortDir === 'asc' ? '升序 ↑' : '降序 ↓' }}
+            </el-button>
+          </div>
         </div>
 
-        <el-table :data="sortableSamples" border stripe class="sample-table" max-height="320">
+        <!-- 桌面端：表格 -->
+        <el-table
+          v-if="!isMobile"
+          :data="sortableSamples"
+          border
+          stripe
+          class="sample-table"
+          max-height="320"
+          :default-sort="sortState"
+          @sort-change="onSortChange"
+        >
           <el-table-column
             label="时间"
             prop="time"
-            sortable
-            :sort-method="sortByTime"
+            sortable="custom"
             min-width="180"
           />
-          <el-table-column label="值" prop="value" min-width="120" />
+          <el-table-column label="值" prop="value" sortable="custom" min-width="120" />
         </el-table>
+
+        <!-- 移动端：卡片列表，避免横向滚动 -->
+        <div v-else class="sample-list">
+          <div v-for="(row, i) in sortableSamples" :key="i" class="sample-card">
+            <div class="sample-row">
+              <span class="sample-label">时间</span>
+              <span class="sample-value">{{ row.time || '—' }}</span>
+            </div>
+            <div class="sample-row">
+              <span class="sample-label">值</span>
+              <span class="sample-value">{{ row.value ?? '—' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 分页：浏览全部数据 -->
+        <div class="preview-pager" v-if="preview && preview.totalPages > 1">
+          <el-pagination
+            layout="prev, pager, next"
+            :current-page="previewPage"
+            :page-size="previewPageSize"
+            :total="preview.pointCount"
+            :pager-count="5"
+            @current-change="onPageChange"
+          />
+          <el-select v-model="previewPageSize" size="small" class="page-size" @change="onPageSizeChange">
+            <el-option :value="20" label="20 条/页" />
+            <el-option :value="50" label="50 条/页" />
+            <el-option :value="100" label="100 条/页" />
+          </el-select>
+        </div>
 
         <el-checkbox v-model="confirmChecked" class="confirm-check">
           我确认以上就是要删除的变量与数据
@@ -171,16 +222,18 @@
       </div>
 
       <template #footer>
-        <el-button @click="previewVisible = false">取消</el-button>
-        <el-button
-          type="danger"
-          :icon="Delete"
-          :loading="deleting"
-          :disabled="!confirmChecked"
-          @click="onConfirmDelete"
-        >
-          确认删除
-        </el-button>
+        <div class="preview-footer">
+          <el-button @click="previewVisible = false">取消</el-button>
+          <el-button
+            type="danger"
+            :icon="Delete"
+            :loading="deleting"
+            :disabled="!confirmChecked"
+            @click="onConfirmDelete"
+          >
+            确认删除
+          </el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -216,7 +269,10 @@ const previewVisible = ref(false)
 const previewLoading = ref(false)
 const preview = ref<VariablePreview | null>(null)
 const confirmChecked = ref(false)
-const sampleLimit = ref(20)
+const previewPage = ref(1)
+const previewPageSize = ref(20)
+const previewSortBy = ref<'time' | 'value'>('time')
+const previewSortDir = ref<'asc' | 'desc'>('asc')
 const delStartText = ref('')
 const delEndText = ref('')
 
@@ -301,7 +357,7 @@ async function onExport() {
   }
 }
 
-// 抽样表格：后端按时间升序返回，这里支持按时间列排序（前端本地排序）
+// 当前页抽样数据（后端已排序分页，前端仅展示）
 const sortableSamples = computed(() =>
   (preview.value?.samples ?? []).map(s => ({
     time: s.time ?? null,
@@ -309,10 +365,33 @@ const sortableSamples = computed(() =>
   }))
 )
 
-function sortByTime(a: { time: string | null }, b: { time: string | null }) {
-  const ta = a.time ? new Date(a.time).getTime() : 0
-  const tb = b.time ? new Date(b.time).getTime() : 0
-  return ta - tb
+// 当前排序表头状态（用于桌面端 el-table 高亮显示）
+const sortState = computed(() => {
+  if (!preview.value) return {}
+  return { prop: preview.value.sortBy, order: preview.value.sortDir === 'desc' ? 'descending' : 'ascending' }
+})
+
+// 统一的预览查询（受控排序 + 分页）
+async function fetchPreview() {
+  if (!delVariableName.value.trim()) return
+  const [s, e] = isMobile.value ? [delStart.value, delEnd.value] : (delRange.value ?? ['', ''])
+  if (!s || !e) return
+  previewLoading.value = true
+  try {
+    preview.value = await previewDelete({
+      start: s,
+      stop: e,
+      dataName: delVariableName.value.trim(),
+      page: previewPage.value,
+      pageSize: previewPageSize.value,
+      sortBy: previewSortBy.value,
+      sortDir: previewSortDir.value
+    })
+  } catch {
+    // 错误已由拦截器提示
+  } finally {
+    previewLoading.value = false
+  }
 }
 
 async function onDelete() {
@@ -327,46 +406,50 @@ async function onDelete() {
     return
   }
 
-  // 2) 查询预览
+  // 2) 查询预览（重置为第一页、默认排序）
   delStartText.value = s
   delEndText.value = e
+  previewPage.value = 1
+  previewSortBy.value = 'time'
+  previewSortDir.value = 'asc'
   previewVisible.value = true
   previewLoading.value = true
   confirmChecked.value = false
   preview.value = null
-  try {
-    preview.value = await previewDelete({
-      start: s,
-      stop: e,
-      dataName: delVariableName.value.trim(),
-      sampleLimit: sampleLimit.value
-    })
-  } catch {
-    previewVisible.value = false
-    // 错误已由拦截器提示
-  } finally {
-    previewLoading.value = false
-  }
+  await fetchPreview()
 }
 
-// 调整抽样行数后重新查询预览
-async function onSampleLimitChange() {
-  if (!previewVisible.value || !delVariableName.value.trim()) return
-  const [s, e] = isMobile.value ? [delStart.value, delEnd.value] : (delRange.value ?? ['', ''])
-  if (!s || !e) return
-  previewLoading.value = true
-  try {
-    preview.value = await previewDelete({
-      start: s,
-      stop: e,
-      dataName: delVariableName.value.trim(),
-      sampleLimit: sampleLimit.value
-    })
-  } catch {
-    // 错误已由拦截器提示
-  } finally {
-    previewLoading.value = false
+// 切换排序字段/方向后重新查询
+function changeSort(by: 'time' | 'value') {
+  if (previewSortBy.value === by) {
+    previewSortDir.value = previewSortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    previewSortBy.value = by
+    previewSortDir.value = 'asc'
   }
+  previewPage.value = 1
+  fetchPreview()
+}
+
+// 桌面端 el-table 表头点击排序（受控，触发服务端查询）
+function onSortChange({ prop, order }: { prop: string; order: string | null }) {
+  if (!prop) return
+  previewSortBy.value = prop as 'time' | 'value'
+  previewSortDir.value = order === 'descending' ? 'desc' : 'asc'
+  previewPage.value = 1
+  fetchPreview()
+}
+
+// 每页条数变化
+function onPageSizeChange() {
+  previewPage.value = 1
+  fetchPreview()
+}
+
+// 翻页
+function onPageChange(p: number) {
+  previewPage.value = p
+  fetchPreview()
 }
 
 // 3) 二次确认后真正删除
@@ -511,5 +594,121 @@ onMounted(() => {
 .confirm-check :deep(.el-checkbox__label) {
   font-weight: 600;
   color: var(--el-color-danger);
+}
+
+/* 移动端：删除预览卡片列表（替代易横向滚动的表格） */
+.sample-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sample-card {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--el-fill-color-blank);
+}
+
+.sample-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.sample-label {
+  flex: 0 0 36px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.sample-value {
+  flex: 1 1 auto;
+  word-break: break-all;
+  font-size: 13px;
+}
+
+/* 弹窗全屏（移动端）时：让内容区可滚动、底部按钮更易点 */
+.preview-dialog :deep(.el-dialog) {
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+}
+
+.preview-dialog :deep(.el-dialog__body) {
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+.preview-dialog :deep(.el-dialog__footer) {
+  padding: 12px 16px;
+}
+
+.preview-footer {
+  display: flex;
+  gap: 12px;
+}
+
+.preview-footer .el-button {
+  flex: 1 1 0;
+}
+
+/* 排序控件 */
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sort-label {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+/* 分页 */
+.preview-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.preview-pager :deep(.el-pagination) {
+  flex-wrap: wrap;
+}
+
+.page-size {
+  width: 110px;
+}
+
+@media (max-width: 768px) {
+  .sample-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sort-controls {
+    justify-content: space-between;
+  }
+
+  .preview-pager {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .preview-pager :deep(.el-pagination) {
+    justify-content: center;
+  }
+
+  .page-size {
+    width: 100%;
+  }
 }
 </style>

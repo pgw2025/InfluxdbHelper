@@ -56,7 +56,10 @@ namespace InfluxdbHelper.Api.Controllers
             [FromQuery] DateTime start,
             [FromQuery] DateTime stop,
             [FromQuery] string dataName,
-            [FromQuery] int sampleLimit = 20)
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string sortBy = "time",
+            [FromQuery] string sortDir = "asc")
         {
             if (stop <= start)
             {
@@ -66,10 +69,11 @@ namespace InfluxdbHelper.Api.Controllers
             {
                 return Ok(ApiResponse.Fail(3003, "预览必须指定变量名（dataName）"));
             }
-            if (sampleLimit < 1) sampleLimit = 1;
-            if (sampleLimit > 500) sampleLimit = 500;
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 1;
+            if (pageSize > 500) pageSize = 500;
 
-            var preview = await _influxDbService.PreviewAsync(start, stop, dataName.Trim(), sampleLimit);
+            var preview = await _influxDbService.PreviewAsync(start, stop, dataName.Trim(), page, pageSize, sortBy, sortDir);
             return Ok(ApiResponse.Ok(preview));
         }
 

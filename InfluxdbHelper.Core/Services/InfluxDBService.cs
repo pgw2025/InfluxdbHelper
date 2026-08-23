@@ -27,8 +27,8 @@ namespace InfluxdbHelper.Services
         Task<string> DeleteAsync(DateTime start, DateTime stop, string? dataName = null);
         /// <summary>返回备份目录（确保已创建）。</summary>
         string GetBackupPath();
-        /// <summary>预览指定变量在所选时间范围内的数据：点数、起止时间、抽样若干行（按时间升序），用于删除前核对。</summary>
-        Task<VariablePreview> PreviewAsync(DateTime start, DateTime stop, string dataName, int sampleLimit = 20);
+        /// <summary>预览指定变量在所选时间范围内的数据：点数、起止时间、当前页抽样行（支持按时间/值排序与分页），用于删除前核对。</summary>
+        Task<VariablePreview> PreviewAsync(DateTime start, DateTime stop, string dataName, int page = 1, int pageSize = 20, string sortBy = "time", string sortDir = "asc");
     }
 
     /// <summary>删除前预览的结构化结果。</summary>
@@ -38,7 +38,13 @@ namespace InfluxdbHelper.Services
         public long PointCount { get; set; }
         public DateTime? FirstTime { get; set; }
         public DateTime? LastTime { get; set; }
+        /// <summary>当前页数据（已排序、已分页）。</summary>
         public List<VariablePreviewSample> Samples { get; set; } = new();
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public int TotalPages { get; set; } = 1;
+        public string SortBy { get; set; } = "time";
+        public string SortDir { get; set; } = "asc";
     }
 
     /// <summary>预览抽样行。</summary>
@@ -400,15 +406,21 @@ namespace InfluxdbHelper.Services
 
         /// <summary>
         /// 预览指定变量在所选时间范围内的数据。
-        /// 复用 QueryDataAsync 查询，返回点数、起止时间及抽样行（按时间升序）。
+        /// 复用 QueryDataAsync 查询全量记录，支持按 time/value 排序、分页，返回当前页用于删除前核对。
         /// </summary>
-        public async Task<VariablePreview> PreviewAsync(DateTime start, DateTime stop, string dataName, int sampleLimit = 20)
+        public async Task<VariablePreview> PreviewAsync(DateTime start, DateTime stop, string dataName, int page = 1, int pageSize = 20, string sortBy = "time", string sortDir = "asc")
         {
             var safeName = string.IsNullOrWhiteSpace(dataName) ? string.Empty : dataName!.Trim();
             if (string.IsNullOrWhiteSpace(safeName))
             {
                 throw new ArgumentException("dataName 不能为空", nameof(dataName));
             }
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 1;
+            if (pageSize > 500) pageSize = 500;
+            var dir = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+            var by = string.Equals(sortBy, "value", StringComparison.OrdinalIgnoreCase) ? "value" : "time";
 
             var filter = $"|> filter(fn: (r) => r[\"DataName\"] == \"{safeName.Replace("\"", "\\\"")}\") ";
             var query = $"from(bucket: \"{_bucket}\") " +
@@ -418,7 +430,8 @@ namespace InfluxdbHelper.Services
 
             var records = await QueryDataAsync(query);
 
-            var samples = new List<VariablePreviewSample>();
+            // 解析全部记录为（时间, 值）列表
+            var all = new List<VariablePreviewSample>();
             DateTime? first = null;
             DateTime? last = null;
 
@@ -442,26 +455,85 @@ namespace InfluxdbHelper.Services
                     if (last == null || time.Value > last.Value) last = time;
                 }
 
-                if (samples.Count < sampleLimit)
-                {
-                    object? value = null;
-                    if (dict.TryGetValue("Value", out var v) && v != null)
-                        value = v;
-                    else if (dict.TryGetValue("_value", out var v2) && v2 != null)
-                        value = v2;
+                object? value = null;
+                if (dict.TryGetValue("Value", out var v) && v != null)
+                    value = v;
+                else if (dict.TryGetValue("_value", out var v2) && v2 != null)
+                    value = v2;
 
-                    samples.Add(new VariablePreviewSample { Time = time, Value = value });
-                }
+                all.Add(new VariablePreviewSample { Time = time, Value = value });
             }
+
+            // 排序：按时间或按值（数值优先，非数值按字符串）
+            var ascending = dir == "asc";
+            if (by == "value")
+            {
+                all.Sort((a, b) =>
+                {
+                    var ca = ToSortKey(a.Value);
+                    var cb = ToSortKey(b.Value);
+                    var cmp = ca.CompareTo(cb);
+                    return ascending ? cmp : -cmp;
+                });
+            }
+            else
+            {
+                all.Sort((a, b) =>
+                {
+                    var ta = a.Time?.Ticks ?? long.MaxValue;
+                    var tb = b.Time?.Ticks ?? long.MaxValue;
+                    var cmp = ta.CompareTo(tb);
+                    return ascending ? cmp : -cmp;
+                });
+            }
+
+            var total = all.Count;
+            var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+            if (page > totalPages) page = totalPages;
+
+            var samples = all
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
 
             return new VariablePreview
             {
                 DataName = safeName,
-                PointCount = records.Count,
+                PointCount = total,
                 FirstTime = first,
                 LastTime = last,
-                Samples = samples
+                Samples = samples,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                SortBy = by,
+                SortDir = dir
             };
+        }
+
+        /// <summary>将值转为可比较的键：数值按 double，非数值按字符串（空值排最后）。</summary>
+        private static IComparable ToSortKey(object? value)
+        {
+            if (value == null) return string.Empty;
+            if (value is IConvertible && !(value is string) && TryToDouble(value, out var d))
+            {
+                return d;
+            }
+            return value.ToString() ?? string.Empty;
+        }
+
+        private static bool TryToDouble(object value, out double result)
+        {
+            try
+            {
+                result = Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture);
+                return true;
+            }
+            catch
+            {
+                result = 0;
+                return false;
+            }
         }
 
         private static string CsvCell(string value)

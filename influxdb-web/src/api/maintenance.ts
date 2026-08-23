@@ -19,6 +19,11 @@ export interface VariablePreview {
   firstTime: string | null
   lastTime: string | null
   samples: VariablePreviewSample[]
+  page: number
+  pageSize: number
+  totalPages: number
+  sortBy: string
+  sortDir: string
 }
 
 // 导出 CSV：直接触发浏览器下载（后端返回 text/csv 文件流）
@@ -51,8 +56,16 @@ export async function exportCsv(params: { start: string; stop: string; dataName?
   window.URL.revokeObjectURL(url)
 }
 
-// 删除前预览：查询指定变量在所选时间范围的数据概览与抽样
-export function previewDelete(params: { start: string; stop: string; dataName: string; sampleLimit?: number }) {
+// 删除前预览：查询指定变量在所选时间范围的数据概览与抽样（支持排序与分页）
+export function previewDelete(params: {
+  start: string
+  stop: string
+  dataName: string
+  page?: number
+  pageSize?: number
+  sortBy?: string
+  sortDir?: string
+}) {
   return get<VariablePreview>('/maintenance/preview', params)
 }
 
