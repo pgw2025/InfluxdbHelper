@@ -17,6 +17,10 @@ namespace InfluxdbHelper.Api
             builder.Services.AddControllers(options =>
             {
                 options.Filters.Add<GlobalExceptionFilter>();
+            }).AddJsonOptions(options =>
+            {
+                // 全局使用 camelCase 命名，保证具名响应模型（如 VariablePreview）与前端字段一致
+                options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
             });
 
             // ===== 业务服务（来自 Core 类库，与旧 Razor Pages 项目共享） =====

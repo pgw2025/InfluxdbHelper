@@ -21,6 +21,31 @@ namespace InfluxdbHelper.Services
         Task<DateTime?> GetStartedAtAsync();
         /// <summary>InfluxDB 引擎目录占用字节数。未配置/不可用时返回 -1。</summary>
         Task<long> GetStorageSizeBytesAsync();
+        /// <summary>将指定时间范围（及可选变量）的数据导出为 CSV 文本。dataName 为空表示全部变量。</summary>
+        Task<string> ExportCsvAsync(DateTime start, DateTime stop, string? dataName = null);
+        /// <summary>删除指定时间范围（及可选变量）的数据。dataName 为空表示全部变量。返回实际删除的 predicate 描述。</summary>
+        Task<string> DeleteAsync(DateTime start, DateTime stop, string? dataName = null);
+        /// <summary>返回备份目录（确保已创建）。</summary>
+        string GetBackupPath();
+        /// <summary>预览指定变量在所选时间范围内的数据：点数、起止时间、抽样若干行（按时间升序），用于删除前核对。</summary>
+        Task<VariablePreview> PreviewAsync(DateTime start, DateTime stop, string dataName, int sampleLimit = 20);
+    }
+
+    /// <summary>删除前预览的结构化结果。</summary>
+    public class VariablePreview
+    {
+        public string DataName { get; set; } = string.Empty;
+        public long PointCount { get; set; }
+        public DateTime? FirstTime { get; set; }
+        public DateTime? LastTime { get; set; }
+        public List<VariablePreviewSample> Samples { get; set; } = new();
+    }
+
+    /// <summary>预览抽样行。</summary>
+    public class VariablePreviewSample
+    {
+        public DateTime? Time { get; set; }
+        public object? Value { get; set; }
     }
 
     public class InfluxDBService : IInfluxDBService
@@ -34,6 +59,7 @@ namespace InfluxdbHelper.Services
         private string _url;
         private string _token;
         private string _enginePath;
+        private string _backupPath;
 
         public InfluxDBService(IConfiguration configuration, IHttpClientFactory httpClientFactory, IMemoryCache cache)
         {
@@ -50,6 +76,11 @@ namespace InfluxdbHelper.Services
             _url = config.Url ?? string.Empty;
             _token = config.Token ?? string.Empty;
             _enginePath = config.EnginePath ?? string.Empty;
+            _backupPath = config.BackupPath ?? string.Empty;
+            if (string.IsNullOrEmpty(_backupPath))
+            {
+                _backupPath = Path.Combine(AppContext.BaseDirectory, "backups");
+            }
             _org = string.IsNullOrEmpty(config.Org) ? "" : config.Org;
             _bucket = string.IsNullOrEmpty(config.Bucket) ? "" : config.Bucket;
 
@@ -295,6 +326,151 @@ namespace InfluxdbHelper.Services
             {
                 return -1;
             }
+        }
+
+        /// <summary>
+        /// 将指定时间范围（及可选变量）的数据导出为 CSV 文本。
+        /// 列：Time, DataName, Value, 以及其余标签列。dataName 为空表示导出全部变量。
+        /// </summary>
+        public async Task<string> ExportCsvAsync(DateTime start, DateTime stop, string? dataName = null)
+        {
+            var filter = string.IsNullOrWhiteSpace(dataName)
+                ? string.Empty
+                : $"|> filter(fn: (r) => r[\"DataName\"] == \"{dataName!.Replace("\"", "\\\"")}\") ";
+            var query = $"from(bucket: \"{_bucket}\") " +
+                        $"|> range(start: {start:yyyy-MM-ddTHH:mm:ssZ}, stop: {stop:yyyy-MM-ddTHH:mm:ssZ}) " +
+                        filter +
+                        $"|> sort(columns: [\"_time\"])";
+
+            var records = await QueryDataAsync(query);
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Time,DataName,Value");
+
+            foreach (var rec in records)
+            {
+                var dict = (System.Collections.Generic.IDictionary<string, object>)rec;
+
+                string time = string.Empty;
+                if (dict.TryGetValue("Time", out var t) && t != null)
+                {
+                    time = t is DateTime dt ? dt.ToString("yyyy-MM-dd HH:mm:ss") : t.ToString() ?? string.Empty;
+                }
+                else if (dict.TryGetValue("_time", out var t2) && t2 != null)
+                {
+                    time = t2.ToString() ?? string.Empty;
+                }
+
+                string dataNameVal = dict.TryGetValue("DataName", out var d) && d != null ? d.ToString() ?? string.Empty : string.Empty;
+                string value = dict.TryGetValue("Value", out var v) && v != null
+                    ? v.ToString() ?? string.Empty
+                    : (dict.TryGetValue("_value", out var v2) && v2 != null ? v2.ToString() ?? string.Empty : string.Empty);
+
+                sb.AppendLine($"{CsvCell(time)},{CsvCell(dataNameVal)},{CsvCell(value)}");
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 删除指定时间范围（及可选变量）的数据。返回实际使用的删除 predicate（用于日志）。
+        /// 注意：InfluxDB 删除为不可恢复操作，调用方应先备份。
+        /// </summary>
+        public async Task<string> DeleteAsync(DateTime start, DateTime stop, string? dataName = null)
+        {
+            string predicate = string.IsNullOrWhiteSpace(dataName)
+                ? ""
+                : $"DataName=\"{dataName!.Replace("\"", "\\\"")}\"";
+
+            var deleteApi = _client.GetDeleteApi();
+            await deleteApi.Delete(start, stop, predicate, _bucket, _org, default);
+
+            return predicate;
+        }
+
+        /// <summary>备份目录（确保存在）。</summary>
+        public string GetBackupPath()
+        {
+            if (!Directory.Exists(_backupPath))
+            {
+                Directory.CreateDirectory(_backupPath);
+            }
+            return _backupPath;
+        }
+
+        /// <summary>
+        /// 预览指定变量在所选时间范围内的数据。
+        /// 复用 QueryDataAsync 查询，返回点数、起止时间及抽样行（按时间升序）。
+        /// </summary>
+        public async Task<VariablePreview> PreviewAsync(DateTime start, DateTime stop, string dataName, int sampleLimit = 20)
+        {
+            var safeName = string.IsNullOrWhiteSpace(dataName) ? string.Empty : dataName!.Trim();
+            if (string.IsNullOrWhiteSpace(safeName))
+            {
+                throw new ArgumentException("dataName 不能为空", nameof(dataName));
+            }
+
+            var filter = $"|> filter(fn: (r) => r[\"DataName\"] == \"{safeName.Replace("\"", "\\\"")}\") ";
+            var query = $"from(bucket: \"{_bucket}\") " +
+                        $"|> range(start: {start:yyyy-MM-ddTHH:mm:ssZ}, stop: {stop:yyyy-MM-ddTHH:mm:ssZ}) " +
+                        filter +
+                        $"|> sort(columns: [\"_time\"])";
+
+            var records = await QueryDataAsync(query);
+
+            var samples = new List<VariablePreviewSample>();
+            DateTime? first = null;
+            DateTime? last = null;
+
+            foreach (var rec in records)
+            {
+                var dict = (System.Collections.Generic.IDictionary<string, object>)rec;
+
+                DateTime? time = null;
+                if (dict.TryGetValue("Time", out var t) && t is DateTime dt)
+                {
+                    time = dt;
+                }
+                else if (dict.TryGetValue("Time", out var t2) && t2 != null && DateTime.TryParse(t2.ToString(), out var dt2))
+                {
+                    time = dt2;
+                }
+
+                if (time.HasValue)
+                {
+                    if (first == null || time.Value < first.Value) first = time;
+                    if (last == null || time.Value > last.Value) last = time;
+                }
+
+                if (samples.Count < sampleLimit)
+                {
+                    object? value = null;
+                    if (dict.TryGetValue("Value", out var v) && v != null)
+                        value = v;
+                    else if (dict.TryGetValue("_value", out var v2) && v2 != null)
+                        value = v2;
+
+                    samples.Add(new VariablePreviewSample { Time = time, Value = value });
+                }
+            }
+
+            return new VariablePreview
+            {
+                DataName = safeName,
+                PointCount = records.Count,
+                FirstTime = first,
+                LastTime = last,
+                Samples = samples
+            };
+        }
+
+        private static string CsvCell(string value)
+        {
+            if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+            {
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            }
+            return value;
         }
     }
 }
