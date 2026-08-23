@@ -105,6 +105,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getHistory, type HistoryResult } from '@/api/statistics'
@@ -113,6 +114,7 @@ import { useIsMobile } from '@/composables/useIsMobile'
 import { registerPullRefresh } from '@/composables/pullRefresh'
 
 const { isMobile } = useIsMobile()
+const route = useRoute()
 
 const variableName = ref('')
 const timeRange = ref<[string, string] | null>(null)
@@ -143,6 +145,12 @@ const indexBase = (i: number) => (page.value - 1) * pageSize.value + i + 1
 let unregisterPr: (() => void) | null = null
 
 onMounted(() => {
+  // 从统计页点击变量跳转进来时，自动带入变量名并查询
+  const fromVar = route.query.variable
+  if (typeof fromVar === 'string' && fromVar.trim()) {
+    variableName.value = fromVar.trim()
+    load()
+  }
   unregisterPr = registerPullRefresh(load)
 })
 

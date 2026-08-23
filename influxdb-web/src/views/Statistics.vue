@@ -41,9 +41,13 @@
         <el-col :xs="24" :sm="24" :md="10">
           <h4 class="section-title">变量数据分布（Top 15）</h4>
           <!-- 桌面端：表格 -->
-          <el-table v-if="!isMobile" :data="topVariables" height="420" stripe>
+          <el-table v-if="!isMobile" class="stat-table" :data="topVariables" height="420" stripe @row-click="onRowClick">
             <el-table-column type="index" label="#" width="50" />
-            <el-table-column prop="variableName" label="变量名" min-width="180" show-overflow-tooltip />
+            <el-table-column label="变量名" min-width="180" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="var-link">{{ row.variableName }}</span>
+            </template>
+          </el-table-column>
             <el-table-column prop="count" label="数据条数" width="120" sortable />
             <el-table-column label="占比" width="160">
               <template #default="{ row }">
@@ -58,10 +62,19 @@
           </el-table>
           <!-- 移动端：卡片列表 -->
           <div v-else class="var-cards">
-            <div v-for="row in topVariables" :key="row.variableName" class="var-card">
+            <div
+              v-for="row in topVariables"
+              :key="row.variableName"
+              class="var-card"
+              role="button"
+              tabindex="0"
+              @click="goVariable(row.variableName)"
+              @keyup.enter="goVariable(row.variableName)"
+            >
               <div class="var-card-head">
                 <span class="var-name">{{ row.variableName }}</span>
                 <span class="var-count">{{ row.count }}</span>
+                <el-icon class="var-go"><ArrowRight /></el-icon>
               </div>
               <el-progress :percentage="percentage(row.count)" :stroke-width="8" :show-text="false" />
               <span class="var-pct">{{ percentage(row.count).toFixed(1) }}%</span>
@@ -83,13 +96,24 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
-import { Refresh } from '@element-plus/icons-vue'
+import { ArrowRight, Refresh } from '@element-plus/icons-vue'
 import { getSummary, type StatisticsSummary } from '@/api/statistics'
 import { useIsMobile } from '@/composables/useIsMobile'
 import { registerPullRefresh } from '@/composables/pullRefresh'
 
 const { isMobile } = useIsMobile()
+
+const router = useRouter()
+function goVariable(name: string) {
+  router.push({ name: 'history', query: { variable: name } })
+}
+
+// 桌面端点击整行跳转（行点击事件的 row 参数由 el-table 注入）
+function onRowClick(row: { variableName: string }) {
+  goVariable(row.variableName)
+}
 
 const period = ref('day')
 const customRange = ref<[string, string] | null>(null)
@@ -271,6 +295,17 @@ onBeforeUnmount(() => {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
   padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+}
+
+.var-card:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.var-card:active {
+  background: var(--el-fill-color-light);
+  transform: scale(0.99);
 }
 
 .var-card-head {
@@ -288,10 +323,27 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+/* 变量名主色提示（桌面表格 / 移动卡片通用） */
+.var-link {
+  color: var(--el-color-primary);
+}
+
 .var-count {
   font-size: 14px;
   font-weight: 600;
   color: var(--el-color-primary);
+}
+
+/* 卡片右侧箭头，提示可点击跳转 */
+.var-go {
+  color: var(--el-text-color-placeholder);
+  font-size: 16px;
+  margin-left: 6px;
+}
+
+/* 桌面端整行可点击 */
+.stat-table :deep(.el-table__row) {
+  cursor: pointer;
 }
 
 .var-pct {
