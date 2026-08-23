@@ -2,6 +2,16 @@
 @model VariableHistoryModel
 @{
     ViewData["Title"] = "变量历史记录查询";
+
+    // 格式化 DateTime 为 datetime-local 输入框所需的格式 (YYYY-MM-DDTHH:mm)
+    string FormatDateTimeLocal(DateTime? dateTime)
+    {
+        if (!dateTime.HasValue)
+        {
+            return string.Empty;
+        }
+        return dateTime.Value.ToString("yyyy-MM-ddTHH:mm");
+    }
 }
 
 <div class="container-fluid">
@@ -28,13 +38,13 @@
                     <div class="col-md-3">
                         <div class="form-group mb-3">
                             <label asp-for="StartTime" class="form-label">开始时间</label>
-                            <input asp-for="StartTime" type="datetime-local" class="form-control" />
+                            <input asp-for="StartTime" type="datetime-local" class="form-control" value="@FormatDateTimeLocal(Model.StartTime)" />
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="form-group mb-3">
                             <label asp-for="EndTime" class="form-label">结束时间</label>
-                            <input asp-for="EndTime" type="datetime-local" class="form-control" />
+                            <input asp-for="EndTime" type="datetime-local" class="form-control" value="@FormatDateTimeLocal(Model.EndTime)" />
                         </div>
                     </div>
                 </div>
@@ -234,6 +244,7 @@
                 // 获取当前时间字段的值
                 const startInput = document.getElementById('StartTime');
                 const endInput = document.getElementById('EndTime');
+                console.log(startInput);
 
                 // 如果时间字段为空，设置默认值（最近24小时）
                 if (!startInput.value || !endInput.value) {

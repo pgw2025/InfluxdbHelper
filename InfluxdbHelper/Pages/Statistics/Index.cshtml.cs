@@ -20,6 +20,12 @@ namespace InfluxdbHelper.Pages.Statistics
         public string Period { get; set; } = "day"; // 默认为天
 
         [BindProperty(SupportsGet = true)]
+        public DateTime? CustomStartTime { get; set; }
+
+        [BindProperty(SupportsGet = true)]
+        public DateTime? CustomEndTime { get; set; }
+
+        [BindProperty(SupportsGet = true)]
         public int PageNumber { get; set; } = 1; // 分页页码
 
         public DataStatisticsDto? TotalStatistics { get; set; }
@@ -40,11 +46,11 @@ namespace InfluxdbHelper.Pages.Statistics
                 ConnectionOk = true;
 
                 // 根据时间段计算起止时间
-                var (startTime, endTime) = CalculateTimeRange(Period);
-                
+                var (startTime, endTime) = CalculateTimeRange(Period, CustomStartTime, CustomEndTime);
+
                 // 获取总数据统计
                 TotalStatistics = await _statisticsService.GetTotalDataCountAsync(startTime, endTime);
-                
+
                 // 获取各变量统计数据
                 VariableStatistics = await _statisticsService.GetVariableCountsAsync(startTime, endTime);
 
@@ -70,7 +76,7 @@ namespace InfluxdbHelper.Pages.Statistics
                 PageNumber = 1; // 重置为第一页
 
                 // 使用当前时间段来查询历史数据
-                var (startTime, endTime) = CalculateTimeRange(Period);
+                var (startTime, endTime) = CalculateTimeRange(Period, CustomStartTime, CustomEndTime);
 
                 // 查询变量历史数据
                 var allHistory = await _statisticsService.GetVariableHistoryAsync(variableName, startTime, endTime);
@@ -126,7 +132,7 @@ namespace InfluxdbHelper.Pages.Statistics
                 IsHistoryQuery = true;
 
                 // 使用当前时间段来查询历史数据
-                var (startTime, endTime) = CalculateTimeRange(Period);
+                var (startTime, endTime) = CalculateTimeRange(Period, CustomStartTime, CustomEndTime);
 
                 // 查询变量历史数据
                 var allHistory = await _statisticsService.GetVariableHistoryAsync(variableName, startTime, endTime);
@@ -164,10 +170,27 @@ namespace InfluxdbHelper.Pages.Statistics
             }
         }
 
-        private (DateTime start, DateTime end) CalculateTimeRange(string period)
+        private (DateTime start, DateTime end) CalculateTimeRange(string period, DateTime? customStartTime = null, DateTime? customEndTime = null)
         {
             var now = DateTime.Now;
             DateTime start, end;
+
+            // 如果是自定义时间范围
+            if (period == "custom" && customStartTime.HasValue && customEndTime.HasValue)
+            {
+                start = customStartTime.Value;
+                end = customEndTime.Value;
+
+                // 确保开始时间不晚于结束时间
+                if (start > end)
+                {
+                    var temp = start;
+                    start = end;
+                    end = temp;
+                }
+
+                return (start, end);
+            }
 
             switch (period.ToLower())
             {

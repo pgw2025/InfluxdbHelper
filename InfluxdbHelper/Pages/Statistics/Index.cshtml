@@ -2,6 +2,16 @@
 @model InfluxdbHelper.Pages.Statistics.IndexModel
 @{
     ViewData["Title"] = "数据统计";
+
+    // 格式化 DateTime 为 datetime-local 输入框所需的格式 (YYYY-MM-DDTHH:mm)
+    string FormatDateTimeLocal(DateTime? dateTime)
+    {
+        if (!dateTime.HasValue)
+        {
+            return string.Empty;
+        }
+        return dateTime.Value.ToString("yyyy-MM-ddTHH:mm");
+    }
 }
 
 <div class="container-fluid card-mobile-padding">
@@ -44,10 +54,33 @@
                 <button type="submit" class="btn @(Model.Period == "week" ? "btn-primary" : "btn-outline-primary") btn-mobile-full">本周</button>
             </form>
 
-            <form method="post" asp-page-handler="ChangePeriod" class="d-inline-block">
+            <form method="post" asp-page-handler="ChangePeriod" class="d-inline-block mb-1">
                 <input type="hidden" name="period" value="month" />
                 <button type="submit" class="btn @(Model.Period == "month" ? "btn-primary" : "btn-outline-primary") btn-mobile-full">本月</button>
             </form>
+
+            <button type="button" class="btn @(Model.Period == "custom" ? "btn-primary" : "btn-outline-primary") btn-mobile-full mb-1" id="customTimeBtn" data-bs-toggle="collapse" data-bs-target="#customTimeRange">自定义</button>
+        </div>
+
+        <!-- 自定义时间范围 -->
+        <div class="collapse @(Model.Period == "custom" ? "show" : "")" id="customTimeRange">
+            <div class="card card-body mt-2">
+                <form method="get" id="customTimeForm">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-5 col-12">
+                            <label for="customStartTime" class="form-label">开始时间</label>
+                            <input type="datetime-local" class="form-control" id="customStartTime" name="CustomStartTime" value="@FormatDateTimeLocal(Model.CustomStartTime)" />
+                        </div>
+                        <div class="col-md-5 col-12">
+                            <label for="customEndTime" class="form-label">结束时间</label>
+                            <input type="datetime-local" class="form-control" id="customEndTime" name="CustomEndTime" value="@FormatDateTimeLocal(Model.CustomEndTime)" />
+                        </div>
+                        <div class="col-md-2 col-12">
+                            <button type="submit" class="btn btn-primary btn-mobile-full">查询</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -92,10 +125,48 @@
                                         <td class="data-display-mobile">@variableStat.VariableName</td>
                                         <td>@variableStat.Count</td>
                                         <td>
-                                            <form method="post" asp-page-handler="ViewHistory" class="mobile-friendly-form">
-                                                <input type="hidden" name="variableName" value="@variableStat.VariableName" />
-                                                <button type="submit" class="btn btn-sm btn-outline-info btn-mobile-full">查看历史</button>
-                                            </form>
+                                            @{
+                                                // 根据当前时间段计算开始和结束时间
+                                                var now = DateTime.Now;
+                                                DateTime startTime, endTime;
+                                                switch (Model.Period)
+                                                {
+                                                    case "day":
+                                                        startTime = new DateTime(now.Year, now.Month, now.Day);
+                                                        endTime = startTime.AddDays(1);
+                                                        break;
+                                                    case "yesterday":
+                                                        startTime = new DateTime(now.Year, now.Month, now.Day).AddDays(-1);
+                                                        endTime = startTime.AddDays(1);
+                                                        break;
+                                                    case "daybefore":
+                                                        startTime = new DateTime(now.Year, now.Month, now.Day).AddDays(-2);
+                                                        endTime = startTime.AddDays(1);
+                                                        break;
+                                                    case "week":
+                                                        var dayOfWeek = (int)now.DayOfWeek;
+                                                        if (dayOfWeek == 0) dayOfWeek = 7; // 将周日视为7
+                                                        var startOfWeek = now.Date.AddDays(-(dayOfWeek - 1));
+                                                        startTime = new DateTime(startOfWeek.Year, startOfWeek.Month, startOfWeek.Day);
+                                                        endTime = startTime.AddDays(7);
+                                                        break;
+                                                    case "month":
+                                                        startTime = new DateTime(now.Year, now.Month, 1);
+                                                        endTime = startTime.AddMonths(1);
+                                                        break;
+                                                    case "custom":
+                                                        // 使用自定义时间范围
+                                                        startTime = Model.CustomStartTime ?? now.AddDays(-1);
+                                                        endTime = Model.CustomEndTime ?? now;
+                                                        break;
+                                                    default:
+                                                        startTime = now.AddDays(-1);
+                                                        endTime = now;
+                                                        break;
+                                                }
+                                            }
+                                            <a href="/VariableHistory?VariableName=@Uri.EscapeDataString(variableStat.VariableName)&StartTime=@Uri.EscapeDataString(startTime.ToString("yyyy-MM-ddTHH:mm"))&EndTime=@Uri.EscapeDataString(endTime.ToString("yyyy-MM-ddTHH:mm"))"
+                                               class="btn btn-sm btn-outline-info btn-mobile-full">查看历史</a>
                                         </td>
                                     </tr>
                                 }
@@ -207,3 +278,40 @@
         }
     }
 </style>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const customTimeForm = document.getElementById('customTimeForm');
+
+            if (customTimeForm) {
+                customTimeForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const startTime = document.getElementById('customStartTime').value;
+                    const endTime = document.getElementById('customEndTime').value;
+
+                    // 验证时间
+                    if (!startTime || !endTime) {
+                        alert('请选择开始时间和结束时间');
+                        return;
+                    }
+
+                    if (new Date(startTime) >= new Date(endTime)) {
+                        alert('开始时间必须早于结束时间');
+                        return;
+                    }
+
+                    // 构建 URL 参数
+                    const params = new URLSearchParams();
+                    params.append('Period', 'custom');
+                    params.append('CustomStartTime', startTime);
+                    params.append('CustomEndTime', endTime);
+
+                    // 跳转到带参数的 URL
+                    window.location.href = window.location.pathname + '?' + params.toString();
+                });
+            }
+        });
+    </script>
+}
