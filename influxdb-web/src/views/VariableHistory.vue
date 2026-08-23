@@ -2,6 +2,16 @@
   <el-card v-loading="loading">
     <template #header>
       <div class="toolbar">
+        <!-- 时段分段控件（与统计页一致） -->
+        <el-radio-group v-model="period" class="period-group" @change="onPeriodChange">
+          <el-radio-button value="day">今日</el-radio-button>
+          <el-radio-button value="yesterday">昨日</el-radio-button>
+          <el-radio-button value="daybefore">前日</el-radio-button>
+          <el-radio-button value="week">本周</el-radio-button>
+          <el-radio-button value="month">本月</el-radio-button>
+          <el-radio-button value="custom">自定义</el-radio-button>
+        </el-radio-group>
+
         <el-autocomplete
           v-model="variableName"
           :fetch-suggestions="querySearch"
@@ -16,34 +26,35 @@
           </template>
         </el-autocomplete>
 
-        <!-- 桌面端：日期时间范围一行搞定 -->
-        <el-date-picker
-          v-if="!isMobile"
-          v-model="timeRange"
-          type="datetimerange"
-          range-separator="至"
-          start-placeholder="开始时间"
-          end-placeholder="结束时间"
-          value-format="YYYY-MM-DDTHH:mm:ss"
-        />
-        <!-- 移动端：拆为两个独立日期时间选择器，避免双日历在窄屏难选 -->
-        <template v-else>
+        <!-- 自定义时间段：桌面端双日历一行；移动端拆两个独立选择器 -->
+        <template v-if="period === 'custom'">
           <el-date-picker
-            v-model="startTime"
-            type="datetime"
-            placeholder="开始时间"
+            v-if="!isMobile"
+            v-model="timeRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
             value-format="YYYY-MM-DDTHH:mm:ss"
-            class="dt-full"
-            :popper-class="datePopperClass"
           />
-          <el-date-picker
-            v-model="endTime"
-            type="datetime"
-            placeholder="结束时间"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            class="dt-full"
-            :popper-class="datePopperClass"
-          />
+          <template v-else>
+            <el-date-picker
+              v-model="startTime"
+              type="datetime"
+              placeholder="开始时间"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              class="dt-full"
+              :popper-class="datePopperClass"
+            />
+            <el-date-picker
+              v-model="endTime"
+              type="datetime"
+              placeholder="结束时间"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              class="dt-full"
+              :popper-class="datePopperClass"
+            />
+          </template>
         </template>
 
         <el-button type="primary" :icon="Search" @click="onSearch">查询</el-button>
@@ -116,9 +127,71 @@ import { registerPullRefresh } from '@/composables/pullRefresh'
 const { isMobile } = useIsMobile()
 const route = useRoute()
 
+const period = ref('day')
+
 const variableName = ref('')
 const timeRange = ref<[string, string] | null>(null)
 const page = ref(1)
+
+// 本地时间格式化为 YYYY-MM-DDTHH:mm:ss（与日期选择器 value-format 一致）
+function fmtLocal(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+// 按所选时段计算起止时间（本周以周一为起点）
+function computeRange(p: string): [string, string] {
+  const now = new Date()
+  const startOfDay = (d: Date) => {
+    const x = new Date(d)
+    x.setHours(0, 0, 0, 0)
+    return x
+  }
+  const endOfDay = (d: Date) => {
+    const x = new Date(d)
+    x.setHours(23, 59, 59, 0)
+    return x
+  }
+  switch (p) {
+    case 'yesterday': {
+      const y = new Date(now)
+      y.setDate(now.getDate() - 1)
+      return [fmtLocal(startOfDay(y)), fmtLocal(endOfDay(y))]
+    }
+    case 'daybefore': {
+      const y = new Date(now)
+      y.setDate(now.getDate() - 2)
+      return [fmtLocal(startOfDay(y)), fmtLocal(endOfDay(y))]
+    }
+    case 'week': {
+      const d = new Date(now)
+      const day = d.getDay() || 7 // 周一=1…周日=7
+      d.setDate(d.getDate() - day + 1)
+      return [fmtLocal(startOfDay(d)), fmtLocal(now)]
+    }
+    case 'month': {
+      const d = new Date(now.getFullYear(), now.getMonth(), 1)
+      return [fmtLocal(d), fmtLocal(now)]
+    }
+    case 'day':
+    default:
+      return [fmtLocal(startOfDay(now)), fmtLocal(now)]
+  }
+}
+
+// 切换时段：计算时间范围；自定义则交由用户用选择器填
+function applyPeriod(p: string) {
+  if (p === 'custom') {
+    if (!timeRange.value) timeRange.value = null
+  } else {
+    timeRange.value = computeRange(p)
+  }
+}
+
+function onPeriodChange(p: string) {
+  applyPeriod(p)
+  if (variableName.value.trim()) load()
+}
 
 // 移动端将范围拆成两个独立选择器
 const datePopperClass = computed(() => (isMobile.value ? 'mobile-date-popper' : ''))
@@ -145,7 +218,8 @@ const indexBase = (i: number) => (page.value - 1) * pageSize.value + i + 1
 let unregisterPr: (() => void) | null = null
 
 onMounted(() => {
-  // 从统计页点击变量跳转进来时，自动带入变量名并查询
+  // 默认按「今日」查询；从统计页点击变量跳转进来时自动带入变量名
+  applyPeriod(period.value)
   const fromVar = route.query.variable
   if (typeof fromVar === 'string' && fromVar.trim()) {
     variableName.value = fromVar.trim()
@@ -210,6 +284,40 @@ function formatTime(iso: string) {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+/* iOS 风格分段控制器（与统计页一致） */
+.toolbar :deep(.el-radio-group) {
+  background: var(--el-fill-color-light);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.toolbar :deep(.el-radio-button) {
+  flex: 0 1 auto;
+}
+
+.toolbar :deep(.el-radio-button__inner) {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  color: var(--el-text-color-regular);
+  font-weight: 500;
+  padding: 8px 16px;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.toolbar :deep(.el-radio-button__inner:hover) {
+  color: var(--el-color-primary);
+}
+
+.toolbar :deep(.el-radio-button.is-active .el-radio-button__inner) {
+  background: #fff !important;
+  color: var(--el-color-primary) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
+  border-radius: 8px !important;
 }
 
 .var-input {
@@ -286,6 +394,24 @@ function formatTime(iso: string) {
 
   .var-input {
     width: 100%;
+  }
+
+  /* 时段分段控件内部换行均分，避免 6 个挤成一行溢出 */
+  .toolbar :deep(.el-radio-group) {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .toolbar :deep(.el-radio-button) {
+    flex: 1 1 30%;
+    min-width: 0;
+  }
+
+  .toolbar :deep(.el-radio-button__inner) {
+    width: 100%;
+    padding-left: 8px;
+    padding-right: 8px;
   }
 
   .dt-full {
