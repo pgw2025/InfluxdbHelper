@@ -23,7 +23,7 @@
           />
         </template>
 
-        <el-button :icon="Refresh" circle @click="load" />
+        <el-button :icon="Refresh" circle class="refresh-btn" title="刷新" @click="load" />
       </div>
     </template>
 
@@ -191,6 +191,49 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
+/* iOS 风格分段控制器：浅灰轨道 + 选中白底高亮 */
+.toolbar :deep(.el-radio-group) {
+  background: var(--el-fill-color-light);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.toolbar :deep(.el-radio-button) {
+  flex: 0 1 auto;
+}
+
+.toolbar :deep(.el-radio-button__inner) {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  color: var(--el-text-color-regular);
+  font-weight: 500;
+  padding: 8px 16px;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.toolbar :deep(.el-radio-button__inner:hover) {
+  color: var(--el-color-primary);
+}
+
+.toolbar :deep(.el-radio-button.is-active .el-radio-button__inner) {
+  background: #fff !important;
+  color: var(--el-color-primary) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
+  border-radius: 8px !important;
+}
+
+/* 刷新按钮：圆形图标 + 触摸反馈 */
+.refresh-btn {
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.refresh-btn:active {
+  transform: scale(0.92);
+}
+
 .range-alert {
   margin-bottom: 16px;
 }
@@ -265,6 +308,39 @@ onBeforeUnmount(() => {
 
   .section-title {
     margin-top: 12px;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* 单选按钮组内部换行并均分，避免 6 个挤成一行溢出 */
+  .toolbar :deep(.el-radio-group) {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .toolbar :deep(.el-radio-button) {
+    flex: 1 1 30%;
+    min-width: 0;
+  }
+
+  .toolbar :deep(.el-radio-button__inner) {
+    width: 100%;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  /* 自定义日期范围选择器全宽 */
+  .toolbar :deep(.el-date-editor) {
+    width: 100%;
+  }
+
+  .refresh-btn {
+    align-self: flex-end;
+    width: auto;
   }
 }
 </style>

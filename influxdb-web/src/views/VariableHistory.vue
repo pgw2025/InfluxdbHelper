@@ -16,7 +16,9 @@
           </template>
         </el-autocomplete>
 
+        <!-- 桌面端：日期时间范围一行搞定 -->
         <el-date-picker
+          v-if="!isMobile"
           v-model="timeRange"
           type="datetimerange"
           range-separator="至"
@@ -24,6 +26,25 @@
           end-placeholder="结束时间"
           value-format="YYYY-MM-DDTHH:mm:ss"
         />
+        <!-- 移动端：拆为两个独立日期时间选择器，避免双日历在窄屏难选 -->
+        <template v-else>
+          <el-date-picker
+            v-model="startTime"
+            type="datetime"
+            placeholder="开始时间"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            class="dt-full"
+            :popper-class="datePopperClass"
+          />
+          <el-date-picker
+            v-model="endTime"
+            type="datetime"
+            placeholder="结束时间"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            class="dt-full"
+            :popper-class="datePopperClass"
+          />
+        </template>
 
         <el-button type="primary" :icon="Search" @click="onSearch">查询</el-button>
       </div>
@@ -83,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getHistory, type HistoryResult } from '@/api/statistics'
@@ -96,6 +117,23 @@ const { isMobile } = useIsMobile()
 const variableName = ref('')
 const timeRange = ref<[string, string] | null>(null)
 const page = ref(1)
+
+// 移动端将范围拆成两个独立选择器
+const datePopperClass = computed(() => (isMobile.value ? 'mobile-date-popper' : ''))
+const startTime = computed<string>({
+  get: () => timeRange.value?.[0] ?? '',
+  set: (v) => {
+    const cur = timeRange.value ?? ['', '']
+    timeRange.value = [v, cur[1]]
+  }
+})
+const endTime = computed<string>({
+  get: () => timeRange.value?.[1] ?? '',
+  set: (v) => {
+    const cur = timeRange.value ?? ['', '']
+    timeRange.value = [cur[0], v]
+  }
+})
 const pageSize = ref(50)
 const loading = ref(false)
 const result = ref<HistoryResult | null>(null)
@@ -233,12 +271,38 @@ function formatTime(iso: string) {
 }
 
 @media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .var-input {
+    width: 100%;
+  }
+
+  .dt-full {
+    width: 100%;
+  }
+
+  /* 查询按钮全宽 */
+  .toolbar > .el-button {
     width: 100%;
   }
 
   .pager {
     justify-content: center;
+  }
+}
+</style>
+
+<!-- 日期面板 teleport 到 body，需全局样式约束窄屏不溢出视口 -->
+<style>
+@media (max-width: 768px) {
+  .mobile-date-popper {
+    max-width: calc(100vw - 16px);
+  }
+  .mobile-date-popper .el-picker-panel {
+    max-width: calc(100vw - 16px);
   }
 }
 </style>
