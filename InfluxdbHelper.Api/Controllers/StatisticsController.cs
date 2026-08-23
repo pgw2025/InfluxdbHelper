@@ -39,7 +39,7 @@ namespace InfluxdbHelper.Api.Controllers
                 period,
                 startTime,
                 endTime,
-                total,
+                total = total.TotalCount,
                 variables
             }));
         }
