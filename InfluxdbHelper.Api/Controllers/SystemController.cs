@@ -37,6 +37,23 @@ namespace InfluxdbHelper.Api.Controllers
                 connectionOk = await _influxDbService.PingAsync();
             }
 
+            // 三项运行指标：仅在已配置且连通时获取；单项失败不影响整体状态
+            long totalCount = -1;
+            string? influxStartedAt = null;
+            long storageSizeBytes = -1;
+
+            if (configured && connectionOk)
+            {
+                try { totalCount = await _influxDbService.GetTotalPointCountAsync(); } catch { }
+                try
+                {
+                    var started = await _influxDbService.GetStartedAtAsync();
+                    influxStartedAt = started?.ToString("yyyy-MM-ddTHH:mm:ss");
+                }
+                catch { }
+                try { storageSizeBytes = await _influxDbService.GetStorageSizeBytesAsync(); } catch { }
+            }
+
             return Ok(ApiResponse.Ok(new
             {
                 influxConfigured = configured,
@@ -44,7 +61,10 @@ namespace InfluxdbHelper.Api.Controllers
                 influxOrg = org,
                 influxBucket = bucket,
                 dingTalkEnabled = _configuration.GetValue<bool>("DingTalkConfig:Enabled"),
-                connectionOk
+                connectionOk,
+                totalCount,
+                influxStartedAt,
+                storageSizeBytes
             }));
         }
     }

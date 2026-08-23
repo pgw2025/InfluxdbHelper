@@ -24,6 +24,7 @@ namespace InfluxdbHelper.Api
             builder.Services.AddScoped<IStatisticsService, InfluxdbHelper.Services.StatisticsService>();
             builder.Services.AddScoped<IDingTalkService, InfluxdbHelper.Services.DingTalkService>();
             builder.Services.AddHttpClient();
+            builder.Services.AddMemoryCache();
             builder.Services.AddHostedService<InfluxdbHelper.BackgroundServices.DailyStatisticsNotificationService>();
 
             // ===== JWT 认证 =====
