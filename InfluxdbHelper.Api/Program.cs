@@ -101,6 +101,22 @@ namespace InfluxdbHelper.Api
 
             app.MapControllers();
 
+            // 默认监听 0.0.0.0（所有网卡），便于局域网 / 容器内被访问；
+            // 可用环境变量 ASPNETCORE_URLS 或命令行 --urls 覆盖。
+            var listenUrls = builder.Configuration["Urls"]
+                ?? Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+            if (!string.IsNullOrWhiteSpace(listenUrls))
+            {
+                foreach (var url in listenUrls.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    app.Urls.Add(url.Trim());
+                }
+            }
+            else
+            {
+                app.Urls.Add("http://0.0.0.0:5100");
+            }
+
             app.Run();
         }
     }
