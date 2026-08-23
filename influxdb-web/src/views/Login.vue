@@ -82,6 +82,13 @@ async function onSubmit() {
   padding: 12px 8px;
 }
 
+@media (max-width: 768px) {
+  .login-card {
+    width: 90%;
+    max-width: 380px;
+  }
+}
+
 .login-title {
   display: flex;
   align-items: center;

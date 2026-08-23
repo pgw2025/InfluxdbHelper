@@ -1,6 +1,6 @@
 <template>
   <el-row :gutter="16" v-loading="loading">
-    <el-col :span="14">
+    <el-col :xs="24" :sm="24" :md="14">
       <el-card>
         <template #header>
           <div class="card-header">
@@ -9,7 +9,7 @@
           </div>
         </template>
 
-        <el-form :model="form" label-width="90px">
+        <el-form :model="form" :label-position="isMobile ? 'top' : 'right'" label-width="90px">
           <el-form-item label="服务地址">
             <el-input v-model="form.url" placeholder="http://localhost:8086" />
           </el-form-item>
@@ -30,10 +30,10 @@
       </el-card>
     </el-col>
 
-    <el-col :span="10">
+    <el-col :xs="24" :sm="24" :md="10">
       <el-card>
         <template #header>钉钉推送配置</template>
-        <el-form :model="form" label-width="90px">
+        <el-form :model="form" :label-position="isMobile ? 'top' : 'right'" label-width="90px">
           <el-form-item label="启用推送">
             <el-switch v-model="form.dingTalkEnabled" />
           </el-form-item>
@@ -49,6 +49,7 @@
               format="HH:mm"
               placeholder="选择时间"
               :clearable="false"
+              class="full-width-control"
             />
           </el-form-item>
           <el-form-item label="消息模板">
@@ -81,6 +82,9 @@ import {
   testConnection,
   type AppConfig
 } from '@/api/config'
+import { useIsMobile } from '@/composables/useIsMobile'
+
+const { isMobile } = useIsMobile()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -150,11 +154,27 @@ async function onSave() {
   align-items: center;
 }
 
+.full-width-control {
+  width: 100%;
+}
+
 .actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 20px;
   margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .actions .el-button {
+    width: 100%;
+  }
 }
 </style>

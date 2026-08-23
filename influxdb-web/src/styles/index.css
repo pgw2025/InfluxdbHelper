@@ -29,3 +29,51 @@ html, body, #app {
   color: #909399;
   margin-top: 4px;
 }
+
+/* ===== 移动端全局基础体验（仅窄屏生效） ===== */
+@media (max-width: 768px) {
+  /* 去掉点击 300ms 延迟，禁用点击高亮闪烁 */
+  html {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 触摸目标至少 40px，避免误触 */
+  .el-button,
+  .el-input,
+  .el-select,
+  .el-date-editor,
+  .el-autocomplete,
+  .el-radio-button__inner {
+    min-height: 40px;
+  }
+
+  /* 卡片/页面容器在窄屏更紧凑 */
+  .page-card {
+    margin-bottom: 12px;
+  }
+
+  .toolbar {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  /* 工具栏内的控件在窄屏占满整行 */
+  .toolbar .el-autocomplete,
+  .toolbar .el-date-editor,
+  .toolbar > .el-button:not(.el-button--primary.is-circle) {
+    width: 100%;
+  }
+
+  /* 触摸态轻微反馈 */
+  .el-button:active,
+  .tab-item:active {
+    opacity: 0.7;
+  }
+}
+
+/* iOS 安全区变量兜底（无刘海设备为 0） */
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}

@@ -1,7 +1,7 @@
 <template>
   <div v-loading="loading">
     <el-row :gutter="16">
-      <el-col :span="8">
+      <el-col :xs="24" :sm="24" :md="8">
         <el-card>
           <template #header>
             <span>InfluxDB 连接</span>
@@ -33,7 +33,7 @@
         </el-card>
       </el-col>
 
-      <el-col :span="8">
+      <el-col :xs="24" :sm="24" :md="8">
         <el-card>
           <template #header>
             <span>钉钉推送</span>
@@ -51,7 +51,7 @@
         </el-card>
       </el-col>
 
-      <el-col :span="8">
+      <el-col :xs="24" :sm="24" :md="8">
         <el-card>
           <template #header>
             <span>快捷入口</span>

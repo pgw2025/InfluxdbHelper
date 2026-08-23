@@ -39,7 +39,8 @@
         </template>
       </el-alert>
 
-      <el-table :data="result.result.items" stripe border height="480">
+      <!-- 桌面端：表格 -->
+      <el-table v-if="!isMobile" :data="result.result.items" stripe border height="480">
         <el-table-column type="index" label="#" :index="indexBase" width="80" />
         <el-table-column prop="variableName" label="变量名" min-width="180" show-overflow-tooltip />
         <el-table-column label="值" min-width="200">
@@ -50,13 +51,27 @@
         </el-table-column>
       </el-table>
 
+      <!-- 移动端：卡片列表 -->
+      <div v-else class="record-cards">
+        <div v-for="(row, i) in result.result.items" :key="i" class="record-card">
+          <div class="record-head">
+            <span class="record-var">{{ row.variableName }}</span>
+            <span class="record-index">#{{ indexBase(i) }}</span>
+          </div>
+          <div class="record-value">{{ formatValue(row.value) }}</div>
+          <div class="record-time">{{ formatTime(row.time) }}</div>
+        </div>
+        <el-empty v-if="!result.result.items.length" description="暂无记录" />
+      </div>
+
       <div class="pager">
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
           :total="result.result.total"
           :page-sizes="[20, 50, 100, 200]"
-          layout="total, sizes, prev, pager, next, jumper"
+          :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+          :size="isMobile ? 'small' : 'default'"
           @current-change="load"
           @size-change="onSearch"
         />
@@ -68,11 +83,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getHistory, type HistoryResult } from '@/api/statistics'
 import { getVariableSuggestions } from '@/api/variables'
+import { useIsMobile } from '@/composables/useIsMobile'
+import { registerPullRefresh } from '@/composables/pullRefresh'
+
+const { isMobile } = useIsMobile()
 
 const variableName = ref('')
 const timeRange = ref<[string, string] | null>(null)
@@ -82,6 +101,16 @@ const loading = ref(false)
 const result = ref<HistoryResult | null>(null)
 
 const indexBase = (i: number) => (page.value - 1) * pageSize.value + i + 1
+
+let unregisterPr: (() => void) | null = null
+
+onMounted(() => {
+  unregisterPr = registerPullRefresh(load)
+})
+
+onBeforeUnmount(() => {
+  unregisterPr?.()
+})
 
 async function querySearch(query: string, cb: (items: { value: string }[]) => void) {
   try {
@@ -150,9 +179,66 @@ function formatTime(iso: string) {
   color: var(--el-color-primary);
 }
 
+/* 移动端记录卡片列表 */
+.record-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.record-card {
+  background: #fff;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.record-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.record-var {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-index {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
+
+.record-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  word-break: break-all;
+  margin-bottom: 4px;
+}
+
+.record-time {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
 .pager {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+  .var-input {
+    width: 100%;
+  }
+
+  .pager {
+    justify-content: center;
+  }
 }
 </style>
