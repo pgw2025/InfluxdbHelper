@@ -1,79 +1,242 @@
+:root {
+  --el-color-primary: #2563eb;
+  --el-color-primary-light-3: #60a5fa;
+  --el-color-primary-light-5: #93c5fd;
+  --el-color-primary-light-7: #bfdbfe;
+  --el-color-primary-light-8: #dbeafe;
+  --el-color-primary-light-9: #eff6ff;
+  --el-color-primary-dark-2: #1d4ed8;
+
+  --el-color-success: #10b981;
+  --el-color-warning: #f59e0b;
+  --el-color-danger: #ef4444;
+  --el-color-info: #64748b;
+
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: 24px;
+  
+  --el-border-color-light: #e2e8f0;
+  --el-border-color-lighter: #f1f5f9;
+  --el-border-color-extra-light: #f8fafc;
+  
+  --el-bg-color-page: #f8fafc;
+  --el-font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
+
+  /* iOS 安全区变量兜底 */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
 html, body, #app {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
-  background-color: #f5f7fa;
+  font-family: var(--el-font-family);
+  background-color: var(--el-bg-color-page);
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.page-card {
-  margin-bottom: 16px;
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+/* Base Card Styling */
+.el-card {
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04) !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.stat-value {
-  font-size: 28px;
+.el-card.is-always-shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04) !important;
+}
+
+.el-card__header {
+  padding: 14px 20px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: #0f172a;
 }
 
-.stat-label {
+.el-card__body {
+  padding: 20px !important;
+}
+
+/* Modern Pill Segmented Controls */
+.toolbar-segmented .el-radio-group {
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid #e2e8f0;
+}
+
+.toolbar-segmented .el-radio-button__inner {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 6px !important;
+  color: #64748b;
+  font-weight: 500;
   font-size: 13px;
-  color: #909399;
-  margin-top: 4px;
+  padding: 6px 14px;
+  transition: all 0.15s ease;
+}
+
+.toolbar-segmented .el-radio-button__inner:hover {
+  color: #1e293b;
+}
+
+.toolbar-segmented .el-radio-button.is-active .el-radio-button__inner {
+  background: #ffffff !important;
+  color: #2563eb !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Monospace text helper */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Table overrides */
+.el-table {
+  --el-table-header-bg-color: #f8fafc;
+  --el-table-header-text-color: #475569;
+  --el-table-row-hover-bg-color: #f1f5f9;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.el-table th.el-table__cell {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* Buttons */
+.el-button {
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.el-button--primary {
+  box-shadow: 0 1px 2px 0 rgba(37, 99, 235, 0.2);
+}
+
+.el-button--primary:hover {
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
 }
 
 /* ===== 移动端全局基础体验（仅窄屏生效） ===== */
 @media (max-width: 768px) {
-  /* 去掉点击 300ms 延迟，禁用点击高亮闪烁 */
   html {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
   }
 
-  /* 触摸目标至少 40px，避免误触 */
-  .el-button,
+  /* 触摸反馈 */
+  .touch-active:active,
+  .el-button:active {
+    transform: scale(0.97);
+  }
+
+  .el-button {
+    min-height: 42px;
+    font-size: 14px;
+  }
+
   .el-input,
   .el-select,
   .el-date-editor,
-  .el-autocomplete,
-  .el-radio-button__inner {
-    min-height: 40px;
+  .el-autocomplete {
+    min-height: 42px;
+    font-size: 14px;
   }
 
-  /* 卡片/页面容器在窄屏更紧凑 */
-  .page-card {
-    margin-bottom: 12px;
+  .el-input__inner {
+    font-size: 14px;
   }
 
-  .toolbar {
-    gap: 10px;
-    margin-bottom: 12px;
+  .el-card__body {
+    padding: 14px !important;
   }
 
-  /* 工具栏内的控件在窄屏占满整行 */
-  .toolbar .el-autocomplete,
-  .toolbar .el-date-editor,
-  .toolbar > .el-button:not(.el-button--primary.is-circle) {
-    width: 100%;
+  .el-card__header {
+    padding: 12px 14px !important;
   }
 
-  /* 触摸态轻微反馈 */
-  .el-button:active,
-  .tab-item:active {
-    opacity: 0.7;
+  /* 水平滑动胶囊选择器容器（解决移动端按钮换行拥挤） */
+  .mobile-scroll-pills {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+    padding: 3px !important;
+    max-width: 100%;
   }
-}
 
-/* iOS 安全区变量兜底（无刘海设备为 0） */
-:root {
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-top: env(safe-area-inset-top, 0px);
+  .mobile-scroll-pills::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+
+  .mobile-scroll-pills .el-radio-button {
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-scroll-pills .el-radio-button__inner {
+    white-space: nowrap !important;
+    padding: 6px 14px !important;
+    min-height: 34px !important;
+    font-size: 13px !important;
+  }
+
+  /* 移动端日期选择器弹层防溢出与自适应约束 */
+  .el-picker-panel,
+  .el-date-range-picker,
+  .el-picker__popper {
+    max-width: 95vw !important;
+    box-sizing: border-box !important;
+  }
+
+  .el-date-range-picker {
+    overflow-x: auto !important;
+  }
+
+  .el-date-range-picker__content {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 10px !important;
+  }
+
+  .el-date-range-picker__content.is-left {
+    border-right: none !important;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
 }

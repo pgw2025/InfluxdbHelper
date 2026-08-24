@@ -7,14 +7,12 @@
       </template>
 
       <div class="toolbar">
-        <el-radio-group v-model="period" class="period-group" @change="onPeriodChange">
-          <el-radio-button value="day">今日</el-radio-button>
-          <el-radio-button value="yesterday">昨日</el-radio-button>
-          <el-radio-button value="daybefore">前日</el-radio-button>
-          <el-radio-button value="week">本周</el-radio-button>
-          <el-radio-button value="month">本月</el-radio-button>
-          <el-radio-button value="custom">自定义</el-radio-button>
-        </el-radio-group>
+        <PeriodSegmented
+          v-model="period"
+          :show-all-option="false"
+          :show-year-option="false"
+          @change="onPeriodChange"
+        />
 
         <el-autocomplete
           v-model="variableName"
@@ -29,33 +27,12 @@
         </el-autocomplete>
 
         <template v-if="period === 'custom'">
-          <el-date-picker
-            v-if="!isMobile"
-            v-model="timeRange"
-            type="datetimerange"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-          />
-          <template v-else>
-            <el-date-picker
-              v-model="startTime"
-              type="datetime"
-              placeholder="开始时间"
-              value-format="YYYY-MM-DDTHH:mm:ss"
-              class="dt-full"
-              :popper-class="datePopperClass"
+          <div class="custom-range-slot">
+            <CustomDateRangePicker
+              v-model="timeRange"
+              placeholder="选择导出自定义起止时间..."
             />
-            <el-date-picker
-              v-model="endTime"
-              type="datetime"
-              placeholder="结束时间"
-              value-format="YYYY-MM-DDTHH:mm:ss"
-              class="dt-full"
-              :popper-class="datePopperClass"
-            />
-          </template>
+          </div>
         </template>
 
         <el-button type="primary" :icon="Download" :loading="exporting" @click="onExport">导出 CSV</el-button>
@@ -91,40 +68,19 @@
           </template>
         </el-autocomplete>
 
-        <el-radio-group v-model="delPeriod" class="del-period" @change="onDelPeriodChange">
+        <el-radio-group v-model="delPeriod" class="del-period mobile-scroll-pills" @change="onDelPeriodChange">
           <el-radio-button value="year">今年</el-radio-button>
           <el-radio-button value="all">全部</el-radio-button>
           <el-radio-button value="custom">自定义</el-radio-button>
         </el-radio-group>
 
         <template v-if="delPeriod === 'custom'">
-          <el-date-picker
-            v-if="!isMobile"
-            v-model="delRange"
-            type="datetimerange"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-          />
-          <template v-else>
-            <el-date-picker
-              v-model="delStart"
-              type="datetime"
-              placeholder="开始时间"
-              value-format="YYYY-MM-DDTHH:mm:ss"
-              class="dt-full"
-              :popper-class="datePopperClass"
+          <div class="custom-range-slot">
+            <CustomDateRangePicker
+              v-model="delRange"
+              placeholder="选择删除自定义起止时间..."
             />
-            <el-date-picker
-              v-model="delEnd"
-              type="datetime"
-              placeholder="结束时间"
-              value-format="YYYY-MM-DDTHH:mm:ss"
-              class="dt-full"
-              :popper-class="datePopperClass"
-            />
-          </template>
+          </div>
         </template>
 
         <el-button type="danger" :icon="Delete" :loading="deleting" @click="onDelete">删除（将先自动备份）</el-button>
@@ -275,6 +231,9 @@ import { ElMessage } from 'element-plus'
 import { useIsMobile } from '@/composables/useIsMobile'
 import { getVariableSuggestions } from '@/api/variables'
 import { exportCsv, deleteData, previewDelete, type VariablePreview } from '@/api/maintenance'
+import PeriodSegmented from '@/components/PeriodSegmented.vue'
+import CustomDateRangePicker from '@/components/CustomDateRangePicker.vue'
+import { computePeriodRange } from '@/utils/dateRange'
 
 const { isMobile } = useIsMobile()
 
@@ -319,44 +278,9 @@ function querySearch(query: string, cb: (items: { value: string }[]) => void) {
     .catch(() => cb([]))
 }
 
-// 时段预设：计算本地时间起止
-function computeRange(p: string): [string, string] {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)
-  const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59)
-
-  switch (p) {
-    case 'day': {
-      const s = startOfDay(now)
-      return [fmt(s), fmt(now)]
-    }
-    case 'yesterday': {
-      const y = new Date(now); y.setDate(now.getDate() - 1)
-      return [fmt(startOfDay(y)), fmt(endOfDay(y))]
-    }
-    case 'daybefore': {
-      const y = new Date(now); y.setDate(now.getDate() - 2)
-      return [fmt(startOfDay(y)), fmt(endOfDay(y))]
-    }
-    case 'week': {
-      const day = now.getDay() || 7
-      const mon = new Date(now); mon.setDate(now.getDate() - day + 1); mon.setHours(0, 0, 0, 0)
-      return [fmt(mon), fmt(now)]
-    }
-    case 'month': {
-      const m = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
-      return [fmt(m), fmt(now)]
-    }
-    default:
-      return [fmt(startOfDay(now)), fmt(now)]
-  }
-}
-
 function applyPeriod() {
   if (period.value === 'custom') return
-  const [s, e] = computeRange(period.value)
+  const [s, e] = computePeriodRange(period.value)
   timeRange.value = [s, e]
   startTime.value = s
   endTime.value = e
@@ -389,12 +313,8 @@ function onDelPeriodChange() {
   applyDelPeriod()
 }
 
-// 取导出/删除的起止（自定义优先用单独控件，其余用 timeRange）
+// 取导出/删除的起止
 function resolveRange(): [string, string] {
-  if (period.value === 'custom') {
-    if (isMobile.value) return [startTime.value, endTime.value]
-    return timeRange.value ?? ['', '']
-  }
   return timeRange.value ?? ['', '']
 }
 
@@ -534,7 +454,7 @@ function onPageChange(p: number) {
 // 3) 二次确认后真正删除
 async function onConfirmDelete() {
   if (!confirmChecked.value) return
-  const [s, e] = isMobile.value ? [delStart.value, delEnd.value] : (delRange.value ?? ['', ''])
+  const [s, e] = delRange.value ?? ['', '']
   if (!s || !e || !delVariableName.value.trim()) return
 
   deleting.value = true
@@ -578,6 +498,12 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.custom-range-slot {
+  flex: 1 1 240px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .var-input {
