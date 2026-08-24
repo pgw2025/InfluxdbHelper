@@ -411,10 +411,6 @@ namespace InfluxdbHelper.Services
         public async Task<VariablePreview> PreviewAsync(DateTime start, DateTime stop, string dataName, int page = 1, int pageSize = 20, string sortBy = "time", string sortDir = "asc")
         {
             var safeName = string.IsNullOrWhiteSpace(dataName) ? string.Empty : dataName!.Trim();
-            if (string.IsNullOrWhiteSpace(safeName))
-            {
-                throw new ArgumentException("dataName 不能为空", nameof(dataName));
-            }
 
             if (page < 1) page = 1;
             if (pageSize < 1) pageSize = 1;
@@ -422,7 +418,10 @@ namespace InfluxdbHelper.Services
             var dir = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
             var by = string.Equals(sortBy, "value", StringComparison.OrdinalIgnoreCase) ? "value" : "time";
 
-            var filter = $"|> filter(fn: (r) => r[\"DataName\"] == \"{safeName.Replace("\"", "\\\"")}\") ";
+            // dataName 为空时预览全部变量（不加 DataName 过滤）
+            var filter = string.IsNullOrEmpty(safeName)
+                ? string.Empty
+                : $"|> filter(fn: (r) => r[\"DataName\"] == \"{safeName.Replace("\"", "\\\"")}\") ";
             var query = $"from(bucket: \"{_bucket}\") " +
                         $"|> range(start: {start:yyyy-MM-ddTHH:mm:ssZ}, stop: {stop:yyyy-MM-ddTHH:mm:ssZ}) " +
                         filter +
@@ -498,7 +497,7 @@ namespace InfluxdbHelper.Services
 
             return new VariablePreview
             {
-                DataName = safeName,
+                DataName = string.IsNullOrEmpty(safeName) ? "(全部变量)" : safeName,
                 PointCount = total,
                 FirstTime = first,
                 LastTime = last,

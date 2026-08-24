@@ -22,7 +22,8 @@ const tabs = [
   { path: '/dashboard', title: '状态', icon: 'Odometer' },
   { path: '/statistics', title: '统计', icon: 'DataAnalysis' },
   { path: '/history', title: '历史', icon: 'Clock' },
-  { path: '/config', title: '配置', icon: 'Setting' }
+  { path: '/config', title: '配置', icon: 'Setting' },
+  { path: '/maintenance', title: '维护', icon: 'Files' }
 ]
 </script>
 

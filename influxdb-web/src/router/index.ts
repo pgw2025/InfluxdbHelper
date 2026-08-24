@@ -38,6 +38,12 @@ const router = createRouter({
           name: 'config',
           component: () => import('@/views/Config.vue'),
           meta: { title: '系统配置', icon: 'Setting' }
+        },
+        {
+          path: 'maintenance',
+          name: 'maintenance',
+          component: () => import('@/views/DataMaintenance.vue'),
+          meta: { title: '数据维护', icon: 'Files' }
         }
       ]
     },

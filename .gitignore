@@ -361,3 +361,12 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# WorkBuddy workspace data
+.workbuddy/
+
+# Temporary build artifacts
+InfluxdbHelper.Core/.tmpbuild/
+
+# Vite timestamp files
+*.timestamp-*.mjs

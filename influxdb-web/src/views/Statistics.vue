@@ -8,6 +8,8 @@
           <el-radio-button value="daybefore">前日</el-radio-button>
           <el-radio-button value="week">本周</el-radio-button>
           <el-radio-button value="month">本月</el-radio-button>
+          <el-radio-button value="year">今年</el-radio-button>
+          <el-radio-button value="all">全部</el-radio-button>
           <el-radio-button value="custom">自定义</el-radio-button>
         </el-radio-group>
 

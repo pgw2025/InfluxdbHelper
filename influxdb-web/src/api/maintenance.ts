@@ -56,11 +56,11 @@ export async function exportCsv(params: { start: string; stop: string; dataName?
   window.URL.revokeObjectURL(url)
 }
 
-// 删除前预览：查询指定变量在所选时间范围的数据概览与抽样（支持排序与分页）
+// 删除/导出前预览：查询指定变量（或留空=全部变量）在所选时间范围的数据概览与抽样（支持排序与分页）
 export function previewDelete(params: {
   start: string
   stop: string
-  dataName: string
+  dataName?: string
   page?: number
   pageSize?: number
   sortBy?: string

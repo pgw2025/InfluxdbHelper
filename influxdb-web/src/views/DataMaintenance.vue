@@ -91,42 +91,50 @@
           </template>
         </el-autocomplete>
 
-        <el-date-picker
-          v-if="!isMobile"
-          v-model="delRange"
-          type="datetimerange"
-          range-separator="至"
-          start-placeholder="开始时间"
-          end-placeholder="结束时间"
-          value-format="YYYY-MM-DDTHH:mm:ss"
-        />
-        <template v-else>
+        <el-radio-group v-model="delPeriod" class="del-period" @change="onDelPeriodChange">
+          <el-radio-button value="year">今年</el-radio-button>
+          <el-radio-button value="all">全部</el-radio-button>
+          <el-radio-button value="custom">自定义</el-radio-button>
+        </el-radio-group>
+
+        <template v-if="delPeriod === 'custom'">
           <el-date-picker
-            v-model="delStart"
-            type="datetime"
-            placeholder="开始时间"
+            v-if="!isMobile"
+            v-model="delRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
             value-format="YYYY-MM-DDTHH:mm:ss"
-            class="dt-full"
-            :popper-class="datePopperClass"
           />
-          <el-date-picker
-            v-model="delEnd"
-            type="datetime"
-            placeholder="结束时间"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            class="dt-full"
-            :popper-class="datePopperClass"
-          />
+          <template v-else>
+            <el-date-picker
+              v-model="delStart"
+              type="datetime"
+              placeholder="开始时间"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              class="dt-full"
+              :popper-class="datePopperClass"
+            />
+            <el-date-picker
+              v-model="delEnd"
+              type="datetime"
+              placeholder="结束时间"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              class="dt-full"
+              :popper-class="datePopperClass"
+            />
+          </template>
         </template>
 
         <el-button type="danger" :icon="Delete" :loading="deleting" @click="onDelete">删除（将先自动备份）</el-button>
       </div>
     </el-card>
 
-    <!-- 删除前预览与二次确认 -->
+    <!-- 导出/删除前预览与核对 -->
     <el-dialog
       v-model="previewVisible"
-      title="删除前核对"
+      :title="previewMode === 'export' ? '导出前核对' : '删除前核对'"
       :width="isMobile ? '92%' : '720px'"
       :fullscreen="isMobile"
       :close-on-click-modal="false"
@@ -134,13 +142,24 @@
       class="preview-dialog"
     >
       <div v-loading="previewLoading">
-        <el-alert type="warning" :closable="false" class="hint">
-          请确认以下正是你要删除的<strong>变量与数据</strong>。删除后系统会先自动备份，但仍不可恢复。
+        <el-alert
+          :type="previewMode === 'export' ? 'info' : 'warning'"
+          :closable="false"
+          class="hint"
+        >
+          <template #title>
+            <span v-if="previewMode === 'export'">
+              请确认以下是要<strong>导出</strong>的变量与数据，核对无误后点击「导出 CSV」。
+            </span>
+            <span v-else>
+              请确认以下正是你要<strong>删除</strong>的变量与数据。删除后系统会先自动备份，但仍不可恢复。
+            </span>
+          </template>
         </el-alert>
 
         <el-descriptions :column="isMobile ? 1 : 2" border class="preview-meta">
           <el-descriptions-item label="变量名">{{ preview?.dataName }}</el-descriptions-item>
-          <el-descriptions-item label="时间范围">{{ delStartText }} ~ {{ delEndText }}</el-descriptions-item>
+          <el-descriptions-item label="时间范围">{{ previewStartText }} ~ {{ previewEndText }}</el-descriptions-item>
           <el-descriptions-item label="数据点总数">{{ preview?.pointCount }}</el-descriptions-item>
           <el-descriptions-item label="数据起止">
             {{ preview?.firstTime || '—' }} ~ {{ preview?.lastTime || '—' }}
@@ -216,7 +235,7 @@
           </el-select>
         </div>
 
-        <el-checkbox v-model="confirmChecked" class="confirm-check">
+        <el-checkbox v-if="previewMode === 'delete'" v-model="confirmChecked" class="confirm-check">
           我确认以上就是要删除的变量与数据
         </el-checkbox>
       </div>
@@ -225,6 +244,16 @@
         <div class="preview-footer">
           <el-button @click="previewVisible = false">取消</el-button>
           <el-button
+            v-if="previewMode === 'export'"
+            type="primary"
+            :icon="Download"
+            :loading="exporting"
+            @click="onConfirmExport"
+          >
+            导出 CSV
+          </el-button>
+          <el-button
+            v-else
             type="danger"
             :icon="Delete"
             :loading="deleting"
@@ -259,12 +288,14 @@ const exporting = ref(false)
 
 // 删除区
 const delVariableName = ref('')
+const delPeriod = ref<'year' | 'all' | 'custom'>('year')
 const delRange = ref<[string, string] | null>(null)
 const delStart = ref('')
 const delEnd = ref('')
 const deleting = ref(false)
 
-// 删除前预览
+// 导出/删除前预览（共用）
+const previewMode = ref<'export' | 'delete'>('delete')
 const previewVisible = ref(false)
 const previewLoading = ref(false)
 const preview = ref<VariablePreview | null>(null)
@@ -273,8 +304,12 @@ const previewPage = ref(1)
 const previewPageSize = ref(20)
 const previewSortBy = ref<'time' | 'value'>('time')
 const previewSortDir = ref<'asc' | 'desc'>('asc')
-const delStartText = ref('')
-const delEndText = ref('')
+// 弹窗专用的来源副本（避免与导出/删除各自表单耦合）
+const previewVarName = ref('')
+const previewStart = ref('')
+const previewEnd = ref('')
+const previewStartText = ref('')
+const previewEndText = ref('')
 
 const datePopperClass = computed(() => (isMobile.value ? 'mobile-date-popper' : ''))
 
@@ -331,6 +366,29 @@ function onPeriodChange() {
   applyPeriod()
 }
 
+// 删除区快捷时段：今年 / 全部 / 自定义，选中后填充对应的时间范围
+function applyDelPeriod() {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  if (delPeriod.value === 'year') {
+    const s = new Date(now.getFullYear(), 0, 1, 0, 0, 0)
+    delRange.value = [fmt(s), fmt(now)]
+    delStart.value = fmt(s)
+    delEnd.value = fmt(now)
+  } else if (delPeriod.value === 'all') {
+    const s = new Date(2000, 0, 1, 0, 0, 0)
+    delRange.value = [fmt(s), fmt(now)]
+    delStart.value = fmt(s)
+    delEnd.value = fmt(now)
+  }
+  // custom：保留手选，不自动填充
+}
+
+function onDelPeriodChange() {
+  applyDelPeriod()
+}
+
 // 取导出/删除的起止（自定义优先用单独控件，其余用 timeRange）
 function resolveRange(): [string, string] {
   if (period.value === 'custom') {
@@ -346,15 +404,8 @@ async function onExport() {
     ElMessage.warning('请选择时间范围')
     return
   }
-  exporting.value = true
-  try {
-    await exportCsv({ start: s, stop: e, dataName: variableName.value || undefined })
-    ElMessage.success('导出成功，文件已下载')
-  } catch (err) {
-    // 错误已由拦截器提示
-  } finally {
-    exporting.value = false
-  }
+  // 导出允许变量名留空（导出全部）；先走预览弹窗核对
+  openPreview('export', variableName.value.trim(), s, e)
 }
 
 // 当前页抽样数据（后端已排序分页，前端仅展示）
@@ -371,17 +422,35 @@ const sortState = computed(() => {
   return { prop: preview.value.sortBy, order: preview.value.sortDir === 'desc' ? 'descending' : 'ascending' }
 })
 
-// 统一的预览查询（受控排序 + 分页）
+// 打开预览弹窗并查询（导出/删除共用）
+async function openPreview(mode: 'export' | 'delete', dataName: string, start: string, stop: string) {
+  previewMode.value = mode
+  previewVarName.value = dataName
+  previewStart.value = start
+  previewEnd.value = stop
+  previewStartText.value = start
+  previewEndText.value = stop
+  previewPage.value = 1
+  previewSortBy.value = 'time'
+  previewSortDir.value = 'asc'
+  previewVisible.value = true
+  previewLoading.value = true
+  confirmChecked.value = false
+  preview.value = null
+  await fetchPreview()
+}
+
+// 统一的预览查询（受控排序 + 分页），使用弹窗来源副本参数
 async function fetchPreview() {
-  if (!delVariableName.value.trim()) return
-  const [s, e] = isMobile.value ? [delStart.value, delEnd.value] : (delRange.value ?? ['', ''])
+  const s = previewStart.value
+  const e = previewEnd.value
   if (!s || !e) return
   previewLoading.value = true
   try {
     preview.value = await previewDelete({
       start: s,
       stop: e,
-      dataName: delVariableName.value.trim(),
+      dataName: previewVarName.value || undefined,
       page: previewPage.value,
       pageSize: previewPageSize.value,
       sortBy: previewSortBy.value,
@@ -395,6 +464,8 @@ async function fetchPreview() {
 }
 
 async function onDelete() {
+  // 0) 确保快捷时段（今年/全部）已填充范围
+  applyDelPeriod()
   // 1) 必填校验
   if (!delVariableName.value || !delVariableName.value.trim()) {
     ElMessage.warning('请指定要删除的变量名（不支持留空删除全部）')
@@ -406,17 +477,25 @@ async function onDelete() {
     return
   }
 
-  // 2) 查询预览（重置为第一页、默认排序）
-  delStartText.value = s
-  delEndText.value = e
-  previewPage.value = 1
-  previewSortBy.value = 'time'
-  previewSortDir.value = 'asc'
-  previewVisible.value = true
-  previewLoading.value = true
-  confirmChecked.value = false
-  preview.value = null
-  await fetchPreview()
+  // 2) 查询预览（删除模式）
+  openPreview('delete', delVariableName.value.trim(), s, e)
+}
+
+// 预览核对通过后执行导出
+async function onConfirmExport() {
+  const s = previewStart.value
+  const e = previewEnd.value
+  if (!s || !e) return
+  exporting.value = true
+  try {
+    await exportCsv({ start: s, stop: e, dataName: previewVarName.value || undefined })
+    ElMessage.success('导出成功，文件已下载')
+    previewVisible.value = false
+  } catch {
+    // 错误已由拦截器提示
+  } finally {
+    exporting.value = false
+  }
 }
 
 // 切换排序字段/方向后重新查询
@@ -474,6 +553,7 @@ async function onConfirmDelete() {
 
 onMounted(() => {
   applyPeriod()
+  applyDelPeriod()
 })
 </script>
 

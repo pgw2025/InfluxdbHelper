@@ -48,14 +48,13 @@ namespace InfluxdbHelper.Api.Controllers
         }
 
         /// <summary>
-        /// 删除前预览：查询指定变量在所选时间范围内的数据概览与抽样，供用户核对是否确为要删除的目标。
-        /// dataName 必填；为空返回错误。
+        /// 删除/导出前预览：查询指定变量（或留空=全部变量）在所选时间范围内的数据概览与抽样，供用户核对。
         /// </summary>
         [HttpGet("preview")]
         public async Task<IActionResult> Preview(
             [FromQuery] DateTime start,
             [FromQuery] DateTime stop,
-            [FromQuery] string dataName,
+            [FromQuery] string? dataName = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             [FromQuery] string sortBy = "time",
@@ -65,15 +64,12 @@ namespace InfluxdbHelper.Api.Controllers
             {
                 return Ok(ApiResponse.Fail(3001, "结束时间必须晚于开始时间"));
             }
-            if (string.IsNullOrWhiteSpace(dataName))
-            {
-                return Ok(ApiResponse.Fail(3003, "预览必须指定变量名（dataName）"));
-            }
             if (page < 1) page = 1;
             if (pageSize < 1) pageSize = 1;
             if (pageSize > 500) pageSize = 500;
 
-            var preview = await _influxDbService.PreviewAsync(start, stop, dataName.Trim(), page, pageSize, sortBy, sortDir);
+            // dataName 可空：为空时预览全部变量（用于导出留空场景）；删除场景的必填校验在前端完成
+            var preview = await _influxDbService.PreviewAsync(start, stop, dataName?.Trim() ?? string.Empty, page, pageSize, sortBy, sortDir);
             return Ok(ApiResponse.Ok(preview));
         }
 

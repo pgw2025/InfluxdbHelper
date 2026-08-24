@@ -10,5 +10,9 @@ namespace InfluxdbHelper.Models
         /// InfluxDB 引擎数据目录（engine path）。仅当本 API 与 InfluxDB 同机时才可用于统计占用空间；留空则无法获取。
         /// </summary>
         public string EnginePath { get; set; } = string.Empty;
+        /// <summary>
+        /// 删除/清理前的 CSV 备份目录（与引擎目录分离存放）。留空则使用默认路径。
+        /// </summary>
+        public string BackupPath { get; set; } = string.Empty;
     }
 }
